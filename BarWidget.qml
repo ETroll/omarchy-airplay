@@ -20,6 +20,9 @@ BarWidget {
   property bool pairingPromptActive: false
   property string discoveryError: ""
   property string streamError: ""
+  property string networkDescription: ""
+  property string firewallError: ""
+  property bool firewallManaged: false
   property bool deliberateStop: false
   property string queuedPairCode: ""
   property string pendingStartPairCode: ""
@@ -30,7 +33,8 @@ BarWidget {
 
   readonly property var mirroredProperties: [
     "bar", "settings", "receivers", "selectedName", "selectedAddress",
-    "selectedDeviceId", "pairingRequired", "pairingPromptActive", "discoveryError", "streamError", "mirroring"
+    "selectedDeviceId", "pairingRequired", "pairingPromptActive", "discoveryError", "streamError", "mirroring",
+    "networkDescription", "firewallError", "firewallManaged"
   ]
 
   function boolSetting(key, fallback) {
@@ -59,6 +63,7 @@ BarWidget {
   function open() {
     if (panelLoader.item) panelLoader.item.open()
     root.discover()
+    root.refreshNetwork()
   }
 
   function close() {
@@ -105,7 +110,31 @@ BarWidget {
     saveProcess.command = [root.ctlPath, "save", name, address, root.selectedDeviceId]
     saveProcess.running = true
     root.checkPairing()
+    root.refreshFirewallState()
     root.injectPanel()
+  }
+
+  function refreshNetwork() {
+    networkProcess.command = [root.ctlPath, "network"]
+    networkProcess.running = true
+  }
+
+  function refreshFirewallState() {
+    root.firewallManaged = false
+    root.firewallError = ""
+    if (root.selectedDeviceId === "") { root.injectPanel(); return }
+    firewallLoadProcess.command = [root.ctlPath, "firewall-load", root.selectedDeviceId]
+    firewallLoadProcess.running = true
+  }
+
+  function allowSelectedReceiver() {
+    if (root.selectedDeviceId === "" || root.selectedAddress === "") return "no-receiver"
+    root.firewallError = ""
+    firewallAllowProcess.command = ["pkexec", "/usr/bin/ufw", "allow", "from", root.selectedAddress,
+      "to", "any", "port", String(root.setting("portRange", "60000-60010")).replace("-", ":"), "proto", "udp"]
+    firewallAllowProcess.running = true
+    root.injectPanel()
+    return "authorizing-firewall"
   }
 
   function clearSelection() {
@@ -137,8 +166,9 @@ BarWidget {
       return
     }
     if (root.mirroring && receiver.address === root.selectedAddress) root.stop()
-    forgetProcess.command = [root.ctlPath, "forget", receiver.deviceId]
-    forgetProcess.running = true
+    pendingForgetReceiver = receiver
+    firewallLookupForForgetProcess.command = [root.ctlPath, "firewall-load", receiver.deviceId]
+    firewallLookupForForgetProcess.running = true
     if (receiver.address === root.selectedAddress) {
       root.pairingRequired = true
       root.pairingPromptActive = false
@@ -238,6 +268,7 @@ BarWidget {
     loadProcess.command = [root.ctlPath, "load"]
     loadProcess.running = true
     root.discover()
+    root.refreshNetwork()
   }
 
   onBarChanged: root.injectPanel()
@@ -261,6 +292,92 @@ BarWidget {
       root.injectPanel()
     }
   }
+
+  property var pendingForgetReceiver: null
+
+  function finishForget() {
+    if (!pendingForgetReceiver) return
+    forgetProcess.command = [root.ctlPath, "forget", pendingForgetReceiver.deviceId]
+    forgetProcess.running = true
+    pendingForgetReceiver = null
+  }
+
+  Process {
+    id: networkProcess
+    property string outText: ""
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: networkProcess.outText = text }
+    onExited: function(code) {
+      if (code === 0) {
+        var fields = String(networkProcess.outText).trim().split("\t")
+        root.networkDescription = fields.length >= 4
+          ? ((fields[1] || fields[0]) + " · " + (fields[2] || fields[0]) + " · " + fields[3]) : ""
+      } else root.networkDescription = ""
+      networkProcess.outText = ""
+      root.injectPanel()
+    }
+  }
+
+  Process {
+    id: firewallLoadProcess
+    property string outText: ""
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: firewallLoadProcess.outText = text }
+    onExited: function(code) {
+      var fields = String(firewallLoadProcess.outText).trim().split("\t")
+      root.firewallManaged = code === 0 && fields.length >= 3 && fields[1] === root.selectedAddress
+      firewallLoadProcess.outText = ""
+      root.injectPanel()
+    }
+  }
+
+  Process {
+    id: firewallAllowProcess
+    property string errText: ""
+    stderr: StdioCollector { waitForEnd: true; onStreamFinished: firewallAllowProcess.errText = text }
+    onExited: function(code) {
+      if (code === 0) {
+        firewallSaveProcess.command = [root.ctlPath, "firewall-save", root.selectedDeviceId, root.selectedAddress,
+          String(root.setting("portRange", "60000-60010"))]
+        firewallSaveProcess.running = true
+        root.firewallManaged = true
+        root.notify(root.t("firewallAllowedTitle"), root.t("firewallAllowed", { address: root.selectedAddress }))
+      } else root.firewallError = root.t("firewallAllowFailed")
+      firewallAllowProcess.errText = ""
+      root.injectPanel()
+    }
+  }
+
+  Process { id: firewallSaveProcess }
+
+  Process {
+    id: firewallLookupForForgetProcess
+    property string outText: ""
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: firewallLookupForForgetProcess.outText = text }
+    onExited: function(code) {
+      var fields = String(firewallLookupForForgetProcess.outText).trim().split("\t")
+      firewallLookupForForgetProcess.outText = ""
+      if (code !== 0 || fields.length < 3) { root.finishForget(); return }
+      firewallRemoveProcess.command = ["pkexec", "/usr/bin/ufw", "--force", "delete", "allow", "from", fields[1],
+        "to", "any", "port", String(fields[2]).replace("-", ":"), "proto", "udp"]
+      firewallRemoveProcess.running = true
+    }
+  }
+
+  Process {
+    id: firewallRemoveProcess
+    onExited: function(code) {
+      if (code === 0 && pendingForgetReceiver) {
+        firewallClearProcess.command = [root.ctlPath, "firewall-clear", pendingForgetReceiver.deviceId]
+        firewallClearProcess.running = true
+        root.finishForget()
+      } else {
+        root.firewallError = root.t("firewallRemoveFailed")
+        pendingForgetReceiver = null
+      }
+      root.injectPanel()
+    }
+  }
+
+  Process { id: firewallClearProcess }
 
   Timer {
     id: pairingCompleteTimer

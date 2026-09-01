@@ -5,11 +5,59 @@ set -euo pipefail
 config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
 state_dir="${config_home}/omarchy-airplay"
 target_file="${state_dir}/target.tsv"
+firewall_file="${state_dir}/firewall.tsv"
 credentials_file="${config_home}/doubletake/credentials.json"
 
 usage() {
-  printf 'Usage: %s discover|load|save NAME ADDRESS [DEVICE_ID]|clear|paired DEVICE_ID|forget DEVICE_ID|clear-restore DEVICE_ID\n' "$0" >&2
+  printf 'Usage: %s discover|load|save NAME ADDRESS [DEVICE_ID]|clear|paired DEVICE_ID|forget DEVICE_ID|clear-restore DEVICE_ID|network|firewall-load DEVICE_ID|firewall-save DEVICE_ID ADDRESS PORT_RANGE|firewall-clear DEVICE_ID\n' "$0" >&2
   exit 2
+}
+
+network() {
+  local route iface gateway cidr connection type
+  route="$(ip -4 route show default 2>/dev/null | head -n 1 || true)"
+  iface="$(awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }' <<<"$route")"
+  gateway="$(awk '{ for (i = 1; i <= NF; i++) if ($i == "via") { print $(i + 1); exit } }' <<<"$route")"
+  [[ -n "$iface" ]] || exit 1
+  cidr="$(ip -o -4 addr show dev "$iface" scope global 2>/dev/null | awk '{ print $4; exit }')"
+  type="$(nmcli -g GENERAL.TYPE device show "$iface" 2>/dev/null | head -n 1 || true)"
+  connection="$(nmcli -g GENERAL.CONNECTION device show "$iface" 2>/dev/null | head -n 1 || true)"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$iface" "$type" "$connection" "$cidr" "$gateway"
+}
+
+validate_firewall_record() {
+  [[ "$1" =~ ^[0-9A-Fa-f:]+$ ]] || { printf 'Invalid device ID\n' >&2; exit 2; }
+  [[ "$2" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || { printf 'Firewall rules require an IPv4 receiver address\n' >&2; exit 2; }
+  [[ "$3" =~ ^[0-9]{1,5}-[0-9]{1,5}$ ]] || { printf 'Invalid UDP port range\n' >&2; exit 2; }
+}
+
+firewall_load() {
+  [[ $# -eq 1 ]] || usage
+  [[ -f "$firewall_file" ]] || exit 1
+  awk -F'\t' -v device_id="$1" '$1 == device_id { print; exit }' "$firewall_file"
+}
+
+firewall_save() {
+  [[ $# -eq 3 ]] || usage
+  validate_firewall_record "$1" "$2" "$3"
+  mkdir -p "$state_dir"
+  umask 077
+  local temporary
+  temporary="$(mktemp "${state_dir}/firewall.XXXXXX")"
+  if [[ -f "$firewall_file" ]]; then
+    awk -F'\t' -v device_id="$1" '$1 != device_id { print }' "$firewall_file" >"$temporary"
+  fi
+  printf '%s\t%s\t%s\n' "$1" "$2" "$3" >>"$temporary"
+  mv "$temporary" "$firewall_file"
+}
+
+firewall_clear() {
+  [[ $# -eq 1 ]] || usage
+  [[ -f "$firewall_file" ]] || exit 0
+  local temporary
+  temporary="$(mktemp "${state_dir}/firewall.XXXXXX")"
+  awk -F'\t' -v device_id="$1" '$1 != device_id { print }' "$firewall_file" >"$temporary"
+  mv "$temporary" "$firewall_file"
 }
 
 discover() {
@@ -147,6 +195,22 @@ case "${1:-}" in
   clear-restore)
     shift
     clear_restore "$@"
+    ;;
+  network)
+    [[ $# -eq 1 ]] || usage
+    network
+    ;;
+  firewall-load)
+    shift
+    firewall_load "$@"
+    ;;
+  firewall-save)
+    shift
+    firewall_save "$@"
+    ;;
+  firewall-clear)
+    shift
+    firewall_clear "$@"
     ;;
   *)
     usage

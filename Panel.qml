@@ -22,6 +22,9 @@ Panel {
   property string discoveryError: ""
   property string streamError: ""
   property bool mirroring: false
+  property string networkDescription: ""
+  property string firewallError: ""
+  property bool firewallManaged: false
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color dim: Qt.darker(foreground, 1.45)
@@ -247,6 +250,53 @@ Panel {
             text: root.t("pairNewReceiver")
             foreground: root.foreground
             fontFamily: root.fontFamily
+          }
+
+          PanelSeparator { visible: root.selectedAddress !== ""; foreground: root.foreground }
+
+          PanelSectionHeader {
+            visible: root.selectedAddress !== ""
+            text: root.t("networkAndFirewall")
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+          }
+
+          Text {
+            visible: root.selectedAddress !== "" && root.networkDescription !== ""
+            width: parent.width
+            text: root.t("activeNetwork", { network: root.networkDescription })
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+
+          Text {
+            visible: root.selectedAddress !== ""
+            width: parent.width
+            text: root.firewallManaged
+              ? root.t("firewallManaged", { address: root.selectedAddress })
+              : root.t("firewallHelp", { address: root.selectedAddress })
+            color: root.firewallManaged ? Color.accent : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+
+          Text {
+            visible: root.firewallError !== ""
+            width: parent.width
+            text: root.firewallError
+            color: Color.urgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+
+          Button {
+            visible: root.selectedAddress !== "" && !root.firewallManaged
+            text: root.t("allowFirewall")
+            onClicked: if (root.hostWidget) root.hostWidget.allowSelectedReceiver()
           }
 
           Text {

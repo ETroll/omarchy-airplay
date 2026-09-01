@@ -33,6 +33,7 @@ This is an Omarchy/Arch Linux plugin. It needs:
 - Avahi for receiver discovery, including the `avahi-daemon` service.
 - `jq`, used only to inspect and safely remove an individual saved pairing.
 - GStreamer runtime plugins required by DoubleTake.
+- Optional firewall assistance: `ufw` and Polkit's `pkexec`.
 
 Install the required repository packages:
 
@@ -80,6 +81,12 @@ sudo ufw allow from 192.168.1.50 proto udp to any port 60000:60010
 
 Use the configured port range instead if you change it in the widget settings.
 Do not expose this range to untrusted networks.
+
+The widget can also detect the active Wi-Fi/Ethernet network and, on explicit
+request, open the configured UDP range only for the selected receiver. It uses
+the system Polkit prompt to run UFW, records only rules it created, and removes
+that rule when the receiver is forgotten. This is optional; it requires `ufw`
+and `pkexec` (Polkit) to be installed and available.
 
 ## Install
 

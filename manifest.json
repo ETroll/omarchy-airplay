@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.etroll.omarchy-airplay",
   "name": "AirPlay Mirror",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Karl Løland",
   "license": "MIT",
   "description": "Discover AirPlay receivers and mirror the Omarchy desktop with DoubleTake.",
