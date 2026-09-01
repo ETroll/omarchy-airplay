@@ -70,23 +70,21 @@ systemctl is-active avahi-daemon
 
 ### Firewall
 
-DoubleTake uses at least three local UDP ports for each active receiver. The
-plugin defaults to `60000-60010`; restrict that range to trusted receiver IP
-addresses if a firewall is enabled. For example, with UFW and an Apple TV at
-`192.168.1.50`:
+No manual firewall rule is normally required. DoubleTake uses at least three
+local UDP ports for each active receiver; the plugin defaults to
+`60000-60010`.
 
-```sh
-sudo ufw allow from 192.168.1.50 proto udp to any port 60000:60010
-```
+When UFW blocks incoming media traffic, select the receiver and choose
+**Allow selected receiver** in the widget. The plugin detects the active
+Wi-Fi/Ethernet network and opens the configured UDP range only for that
+receiver's current IPv4 address. Polkit shows the system administrator prompt
+before anything changes.
 
-Use the configured port range instead if you change it in the widget settings.
-Do not expose this range to untrusted networks.
-
-The widget can also detect the active Wi-Fi/Ethernet network and, on explicit
-request, open the configured UDP range only for the selected receiver. It uses
-the system Polkit prompt to run UFW, records only rules it created, and removes
-that rule when the receiver is forgotten. This is optional; it requires `ufw`
-and `pkexec` (Polkit) to be installed and available.
+The plugin records only rules it created and removes that rule when you choose
+**Forget** for the receiver. This is optional and requires `ufw` and `pkexec`
+(Polkit). If UFW or Polkit is unavailable, configure the firewall according to
+your system's documentation instead; do not open the range to untrusted
+networks.
 
 ## Install
 
@@ -189,8 +187,8 @@ required before video can begin.
 ### Mirroring connects but does not update
 
 Try `h264` at 30 FPS, then explicitly select the encoder that matches your GPU
-(`vaapi`, `nvenc`, or software). Verify that the configured UDP range is
-allowed by the firewall for the receiver.
+(`vaapi`, `nvenc`, or software). If UFW is enabled, use **Allow selected
+receiver** for the selected receiver and retry.
 
 ### Inspect plugin validation and logs
 
