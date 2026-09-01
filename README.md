@@ -1,81 +1,223 @@
 # Omarchy AirPlay Mirror
 
-An Omarchy bar plugin for discovering AirPlay receivers and mirroring the
-Wayland desktop through [DoubleTake](https://github.com/omarroth/doubletake).
+An Omarchy bar plugin for discovering AirPlay receivers and mirroring a Wayland
+desktop through [DoubleTake](https://github.com/omarroth/doubletake).
+
+It is designed for Apple TV and compatible AirPlay receivers on the local
+network. The plugin discovers receivers, keeps a chosen receiver handy, and
+lets you pair, start, stop, or forget a receiver from the Omarchy bar.
 
 ## Features
 
-- discovers Apple TVs and AirPlay-compatible TVs with mDNS/Avahi;
-- remembers the selected receiver;
-- starts and stops mirroring from the bar;
-- supports pairing a new receiver with its four-digit PIN;
-- opens the portal capture picker for each mirroring session by default;
-- exposes codec, encoder, FPS, latency, audio, and UDP port settings;
-- provides `omarchy-airplay` IPC commands for keybindings and scripts.
-
-## Languages
-
-The plugin uses English by default and selects Norwegian Bokmål text for
-`nb`, `nn`, and `no` system locales. Translations live in `i18n/I18n.js`; add
-another language there by supplying the same message keys as the English map.
+- Discovers AirPlay receivers through mDNS/Avahi.
+- Starts and stops desktop mirroring from the bar.
+- Pairs new receivers with the PIN displayed by the receiver.
+- Lets you select, unselect, and forget individual receivers.
+- Shows the Wayland screen/window/region picker for every new session by
+  default.
+- Supports configurable codec, encoder, FPS, latency, audio, and UDP port
+  range settings.
+- Includes English text and Norwegian Bokmål/Nynorsk locale support.
+- Exposes `omarchy-airplay` IPC commands for keybindings and scripts.
 
 ## Requirements
 
-- Omarchy with the plugin-capable `omarchy-shell`
-- `doubletake`
-- `avahi` with its daemon running
-- the relevant GStreamer encoder plugins for the chosen hardware backend
+This is an Omarchy/Arch Linux plugin. It needs:
 
-The receiver must be able to reach the local UDP port range configured for
-the widget (default `60000-60010`). If a firewall is enabled, allow that UDP
-range only from trusted receiver addresses.
+- Omarchy with a plugin-capable `omarchy-shell`.
+- A working Wayland capture portal. Omarchy normally provides PipeWire and
+  `xdg-desktop-portal-hyprland`.
+- [DoubleTake](https://github.com/omarroth/doubletake), the AirPlay sender.
+- Avahi for receiver discovery, including the `avahi-daemon` service.
+- `jq`, used only to inspect and safely remove an individual saved pairing.
+- GStreamer runtime plugins required by DoubleTake.
 
-The **Choose capture source every time** setting is enabled by default. It
-removes only the portal's saved capture selection before a session, keeping the
-AirPlay pairing intact while allowing a different screen, window, or region to
-be chosen every time.
+Install the required repository packages:
 
-## Install from a checkout
-
-```bash
-mkdir -p ~/.config/omarchy/plugins
-ln -s "$PWD" ~/.config/omarchy/plugins/omarchy-airplay
-omarchy-shell shell rescanPlugins
-omarchy bar move omarchy-airplay --section right
+```sh
+sudo pacman -S --needed \
+  avahi jq \
+  gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad \
+  gst-plugins-ugly gst-libav \
+  pipewire xdg-desktop-portal xdg-desktop-portal-hyprland
 ```
 
-The symlink makes edits in the checkout hot-reload during development.
+Install the stable DoubleTake package from the AUR with your AUR helper:
+
+```sh
+yay -S --needed doubletake
+```
+
+`doubletake-git` is an alternative for users who specifically need the newest
+upstream changes. Do not install it together with `doubletake`.
+
+Enable receiver discovery:
+
+```sh
+sudo systemctl enable --now avahi-daemon
+```
+
+Verify the essentials before installing the plugin:
+
+```sh
+command -v doubletake
+command -v avahi-browse
+systemctl is-active avahi-daemon
+```
+
+### Firewall
+
+DoubleTake uses at least three local UDP ports for each active receiver. The
+plugin defaults to `60000-60010`; restrict that range to trusted receiver IP
+addresses if a firewall is enabled. For example, with UFW and an Apple TV at
+`192.168.1.50`:
+
+```sh
+sudo ufw allow from 192.168.1.50 proto udp to any port 60000:60010
+```
+
+Use the configured port range instead if you change it in the widget settings.
+Do not expose this range to untrusted networks.
+
+## Install
+
+### From GitHub
+
+After this repository has been published, install the plugin with Omarchy:
+
+```sh
+omarchy plugin add https://github.com/<owner>/omarchy-airplay.git --enable
+omarchy bar move <plugin-id> --section right
+```
+
+Replace `<owner>` with the GitHub account name and `<plugin-id>` with the
+published manifest ID. The first command installs a user-owned copy below
+`~/.config/omarchy/plugins/`; it does not modify Omarchy's packaged files.
+
+### From the Omarchy Plugin Marketplace
+
+Once the listing has been approved, install it from the Omarchy plugin browser
+or with the marketplace-provided install command. The marketplace listing
+points to the same public GitHub repository; it does not host a separate copy
+of the plugin.
+
+### Development checkout
+
+For local development, clone the repository and link it into your user plugin
+directory:
+
+```sh
+git clone https://github.com/<owner>/omarchy-airplay.git
+cd omarchy-airplay
+ln -s "$PWD" ~/.config/omarchy/plugins/<plugin-id>
+omarchy-shell shell rescanPlugins
+omarchy bar move <plugin-id> --section right
+```
+
+Saved changes under `~/.config/omarchy/plugins/` normally reload
+automatically. If the plugin does not appear after a manifest change, run
+`omarchy-shell shell rescanPlugins`.
 
 ## Use
 
-Click the icon to open the receiver list. Click a receiver row to select or
-clear it; the screen icon starts/stops mirroring and the trash icon appears
-only for paired receivers. The bar itself never starts a mirror. **Forget**
-removes DoubleTake's saved pairing for that device, so the next connection
-requires its PIN again.
+Click the AirPlay icon in the bar to open or close the receiver list. Click a
+receiver row to select it; click that row again to clear the selection. Use the
+screen icon on the right to start or stop mirroring.
 
-For a new receiver, select it and start once so its PIN appears. The PIN field
-is only shown when the selected receiver is not paired. Enter the PIN and choose
-**Pair & connect**. DoubleTake stores credentials per receiver in its own
-credential store.
+For a new receiver, select it and press the screen icon once. Enter the PIN
+shown by the receiver, then choose **Pair & connect**. DoubleTake stores the
+receiver credential in `~/.config/doubletake/credentials.json` for later use.
+The PIN field is only shown after a connection has been attempted.
+
+The trash icon is shown only for paired receivers. It removes that receiver's
+saved DoubleTake credential, so the next connection must pair again. It does
+not change the receiver itself.
+
+By default, **Choose capture source every time** is enabled. A new mirroring
+session opens the portal picker so you can choose a screen, window, or region.
+It clears only the saved capture selection for that receiver and keeps its
+AirPlay pairing intact.
+
+## Configure
+
+Open the widget's settings in Omarchy to configure the DoubleTake executable,
+video codec, hardware encoder, FPS, target latency, audio, and UDP port range.
+
+`h264` is the compatibility default. On current Intel graphics, `vaapi` with
+the VAAPI driver set to `iHD` is often a good low-latency option. On hybrid-GPU
+systems, explicitly selecting the working encoder can be more reliable than
+`auto`.
 
 Useful IPC calls:
 
-```bash
-omarchy-shell omarchy-airplay status
-omarchy-shell omarchy-airplay toggle
-omarchy-shell omarchy-airplay discover
-omarchy-shell omarchy-airplay select "Living Room" 192.168.1.50 AA:BB:CC:DD:EE:FF
-omarchy-shell omarchy-airplay unselect
+```sh
+omarchy-shell <plugin-id> status
+omarchy-shell <plugin-id> toggle
+omarchy-shell <plugin-id> discover
+omarchy-shell <plugin-id> select "Living Room" 192.168.1.50 AA:BB:CC:DD:EE:FF
+omarchy-shell <plugin-id> unselect
 ```
 
-## Known hardware notes
+## Troubleshooting
 
-`h264` is the compatibility default. On recent Intel graphics, `vaapi` with
-`vaapiDriver` set to `iHD` is often a good low-latency choice. Hybrid systems
-may select an encoder that the compositor cannot feed correctly when `auto` is
-used; explicitly choose the working backend in the Omarchy widget settings.
+### No receivers are listed
+
+Confirm Avahi is running, then test discovery:
+
+```sh
+systemctl is-active avahi-daemon
+avahi-browse --resolve --terminate _airplay._tcp
+```
+
+The computer and receiver must be on the same network, and multicast DNS must
+not be blocked by the network.
+
+### The portal picker does not appear or mirroring is black
+
+Check that PipeWire and the Hyprland portal are running, then stop the mirror
+and start it again from the receiver row. Selecting a source in the portal is
+required before video can begin.
+
+### Mirroring connects but does not update
+
+Try `h264` at 30 FPS, then explicitly select the encoder that matches your GPU
+(`vaapi`, `nvenc`, or software). Verify that the configured UDP range is
+allowed by the firewall for the receiver.
+
+### Inspect plugin validation and logs
+
+```sh
+omarchy plugin validate ~/.config/omarchy/plugins/<plugin-id>
+omarchy plugin list --json | jq '.[] | select(.id == "<plugin-id>")'
+qs log -p "$OMARCHY_PATH/shell" --tail 100
+```
+
+## Remove
+
+Stop any active mirror, then remove the plugin by its manifest ID:
+
+```sh
+omarchy plugin remove <plugin-id>
+```
+
+This removes only the installed plugin copy. It does not uninstall DoubleTake,
+remove Avahi, or delete saved receiver credentials. If you also want to remove
+all DoubleTake pairings, delete `~/.config/doubletake/credentials.json`
+yourself after checking that it contains no credentials you want to keep.
+
+## Security and privacy
+
+Plugins run with the user's permissions. Review this repository and its
+dependencies before installing it. Screen contents are sent to the selected
+AirPlay receiver on the local network. Pair only with receivers you trust, and
+keep firewall rules limited to trusted receiver addresses.
+
+## Languages
+
+The plugin uses English by default and selects Norwegian Bokmål text for `nb`,
+`nn`, and `no` system locales. Translations live in `i18n/I18n.js`; add another
+language there by supplying the same message keys as the English map.
 
 ## License
 
-MIT
+[MIT](LICENSE)
