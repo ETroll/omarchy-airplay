@@ -23,6 +23,7 @@ BarWidget {
   property string networkDescription: ""
   property string firewallError: ""
   property bool firewallManaged: false
+  property string forgettingAddress: ""
   property bool deliberateStop: false
   property string queuedPairCode: ""
   property string pendingStartPairCode: ""
@@ -166,6 +167,7 @@ BarWidget {
       return
     }
     if (root.mirroring && receiver.address === root.selectedAddress) root.stop()
+    root.forgettingAddress = receiver.address
     pendingForgetReceiver = receiver
     firewallLookupForForgetProcess.command = [root.ctlPath, "firewall-load", receiver.deviceId]
     firewallLookupForForgetProcess.running = true
@@ -366,6 +368,7 @@ BarWidget {
     id: firewallRemoveProcess
     onExited: function(code) {
       if (code === 0 && pendingForgetReceiver) {
+        if (pendingForgetReceiver.address === root.selectedAddress) root.firewallManaged = false
         firewallClearProcess.command = [root.ctlPath, "firewall-clear", pendingForgetReceiver.deviceId]
         firewallClearProcess.running = true
         root.finishForget()
@@ -425,9 +428,11 @@ BarWidget {
     onExited: function(code) {
       if (code !== 0) root.streamError = String(forgetProcess.errText).trim() || root.t("pairingForgetFailed")
       else {
+        if (root.forgettingAddress === root.selectedAddress) root.firewallManaged = false
         root.notify(root.t("pairingForgottenTitle"), root.t("pairingForgotten"))
         root.discover()
       }
+      root.forgettingAddress = ""
       forgetProcess.errText = ""
       root.injectPanel()
     }
