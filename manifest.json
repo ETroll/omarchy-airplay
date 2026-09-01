@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy-airplay",
+  "name": "AirPlay Mirror",
+  "version": "0.1.0",
+  "author": "Karl Løland",
+  "license": "MIT",
+  "description": "Discover AirPlay receivers and mirror the Omarchy desktop with DoubleTake.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "AirPlay Mirror",
+    "description": "Discover, select, pair, start and stop AirPlay screen mirroring from the bar.",
+    "category": "System",
+    "aliases": [
+      "airplay",
+      "screen mirror",
+      "doubletake",
+      "apple tv"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "doubletakePath": "doubletake",
+      "videoCodec": "h264",
+      "hardwareEncoder": "auto",
+      "vaapiDriver": "",
+      "fps": 30,
+      "targetLatencyMs": 180,
+      "portRange": "60000-60010",
+      "audio": false
+    },
+    "schema": [
+      {
+        "key": "doubletakePath",
+        "type": "path",
+        "label": "DoubleTake executable",
+        "defaultValue": "doubletake",
+        "description": "Command name or absolute path to DoubleTake."
+      },
+      {
+        "key": "videoCodec",
+        "type": "enum",
+        "label": "Video codec",
+        "options": ["h264", "hevc", "auto"],
+        "defaultValue": "h264",
+        "description": "H.264 is the most compatible choice for live desktop mirroring."
+      },
+      {
+        "key": "hardwareEncoder",
+        "type": "enum",
+        "label": "Hardware encoder",
+        "options": ["auto", "vaapi", "nvenc", "openh264", "none"],
+        "defaultValue": "auto",
+        "description": "Use auto first. Intel graphics commonly work best with VAAPI."
+      },
+      {
+        "key": "vaapiDriver",
+        "type": "string",
+        "label": "VAAPI driver",
+        "defaultValue": "",
+        "description": "Optional LIBVA_DRIVER_NAME, for example iHD on recent Intel graphics."
+      },
+      {
+        "key": "fps",
+        "type": "integer",
+        "label": "Frames per second",
+        "min": 15,
+        "max": 60,
+        "step": 5,
+        "defaultValue": 30
+      },
+      {
+        "key": "targetLatencyMs",
+        "type": "integer",
+        "label": "Target latency (ms)",
+        "min": 0,
+        "max": 1000,
+        "step": 10,
+        "defaultValue": 180
+      },
+      {
+        "key": "portRange",
+        "type": "string",
+        "label": "UDP port range",
+        "defaultValue": "60000-60010",
+        "description": "At least three local ports are required. Permit this range in the firewall for receiver addresses."
+      },
+      {
+        "key": "audio",
+        "type": "boolean",
+        "label": "Mirror audio",
+        "defaultValue": false,
+        "description": "Disabled by default while audio support in DoubleTake is experimental."
+      }
+    ]
+  }
+}
