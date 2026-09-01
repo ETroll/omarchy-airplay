@@ -42,10 +42,11 @@ The symlink makes edits in the checkout hot-reload during development.
 
 ## Use
 
-Click the icon to open the receiver list. Each receiver has its own **Speil**,
-**Velg/Fjern valg**, and **Glem** controls; the bar itself never starts a
-mirror. **Glem** removes DoubleTake's saved pairing for that device, so the
-next connection requires its PIN again.
+Click the icon to open the receiver list. Click a receiver row to select or
+clear it; the screen icon starts/stops mirroring and the trash icon appears
+only for paired receivers. The bar itself never starts a mirror. **Forget**
+removes DoubleTake's saved pairing for that device, so the next connection
+requires its PIN again.
 
 For a new receiver, select it and start once so its PIN appears. The PIN field
 is only shown when the selected receiver is not paired. Enter the PIN and choose

@@ -40,7 +40,15 @@ discover() {
           device_id = substr($10, RSTART + 9, RLENGTH - 9)
         print name "\t" $8 "\t" device_id
       }
-    '
+    ' |
+    while IFS=$'\t' read -r name address device_id; do
+      paired=0
+      if [[ -n "$device_id" && -f "$credentials_file" ]] &&
+        jq -e --arg device_id "$device_id" 'has($device_id)' "$credentials_file" >/dev/null 2>&1; then
+        paired=1
+      fi
+      printf '%s\t%s\t%s\t%s\n' "$name" "$address" "$device_id" "$paired"
+    done
 }
 
 load_target() {

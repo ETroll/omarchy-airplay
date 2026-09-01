@@ -82,7 +82,12 @@ BarWidget {
     for (var i = 0; i < lines.length; i++) {
       if (lines[i] === "") continue
       var fields = lines[i].split("\t")
-      if (fields.length >= 2) found.push({ name: fields[0], address: fields[1], deviceId: fields[2] || "" })
+      if (fields.length >= 2) found.push({
+        name: fields[0],
+        address: fields[1],
+        deviceId: fields[2] || "",
+        paired: fields[3] === "1"
+      })
     }
     return found
   }
@@ -92,6 +97,9 @@ BarWidget {
     root.selectedAddress = address
     root.selectedDeviceId = deviceId || ""
     root.pairingPromptActive = false
+    for (var i = 0; i < root.receivers.length; i++) {
+      if (root.receivers[i].address === address) root.pairingRequired = !root.receivers[i].paired
+    }
     saveProcess.command = [root.ctlPath, "save", name, address, root.selectedDeviceId]
     saveProcess.running = true
     root.checkPairing()
@@ -242,7 +250,10 @@ BarWidget {
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: forgetProcess.errText = text }
     onExited: function(code) {
       if (code !== 0) root.streamError = String(forgetProcess.errText).trim() || root.t("pairingForgetFailed")
-      else root.notify(root.t("pairingForgottenTitle"), root.t("pairingForgotten"))
+      else {
+        root.notify(root.t("pairingForgottenTitle"), root.t("pairingForgotten"))
+        root.discover()
+      }
       forgetProcess.errText = ""
       root.injectPanel()
     }

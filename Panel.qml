@@ -131,12 +131,15 @@ Panel {
               id: receiverRow
               required property var modelData
               readonly property bool selected: modelData.address === root.selectedAddress
-              readonly property bool paired: selected && !root.pairingRequired
+              readonly property bool paired: modelData.paired === true
+              readonly property bool hovered: rowClick.containsMouse
 
               width: contentColumn.width
               implicitHeight: receiverContent.implicitHeight + Style.spacing.lg * 2
               radius: Style.cornerRadius
-              color: selected ? Style.hoverFillFor(Color.accent, root.foreground) : "transparent"
+              color: selected
+                ? Style.hoverFillFor(Color.accent, root.foreground)
+                : (hovered ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent")
               border.width: selected ? 1 : 0
               border.color: selected ? Color.accent : "transparent"
 
@@ -188,6 +191,21 @@ Panel {
                   }
                 }
 
+                MouseArea {
+                  id: rowClick
+                  anchors.left: parent.left
+                  anchors.right: actionRow.left
+                  anchors.top: parent.top
+                  anchors.bottom: parent.bottom
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: {
+                    if (!root.hostWidget) return
+                    if (receiverRow.selected) root.hostWidget.clearSelection()
+                    else root.hostWidget.selectReceiver(receiverRow.modelData.name, receiverRow.modelData.address, receiverRow.modelData.deviceId)
+                  }
+                }
+
                 Row {
                   id: actionRow
                   spacing: Style.spacing.xs
@@ -211,25 +229,11 @@ Panel {
                   }
 
                   PanelActionButton {
-                    iconText: receiverRow.selected ? "󰅖" : "󰄬"
-                    tooltipText: receiverRow.selected ? root.t("clearSelectionTooltip") : root.t("selectTooltip")
-                    foreground: root.foreground
-                    hoverColor: receiverRow.selected ? Color.urgent : Color.accent
-                    fontFamily: root.fontFamily
-                    onClicked: {
-                      if (!root.hostWidget) return
-                      if (receiverRow.selected) root.hostWidget.clearSelection()
-                      else root.hostWidget.selectReceiver(receiverRow.modelData.name, receiverRow.modelData.address, receiverRow.modelData.deviceId)
-                    }
-                  }
-
-                  PanelActionButton {
                     iconText: "󰆴"
                     tooltipText: root.t("forgetTooltip")
                     foreground: root.foreground
                     hoverColor: Color.urgent
-                    opacity: receiverRow.modelData.deviceId !== "" ? 1 : 0.35
-                    enabled: receiverRow.modelData.deviceId !== ""
+                    visible: receiverRow.paired
                     fontFamily: root.fontFamily
                     onClicked: if (root.hostWidget) root.hostWidget.forgetReceiver(receiverRow.modelData)
                   }
