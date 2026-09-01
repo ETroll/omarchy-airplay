@@ -138,25 +138,32 @@ Panel {
               border.width: selected ? 1 : 0
               border.color: selected ? Color.accent : "transparent"
 
-              Row {
+              Item {
                 id: receiverContent
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.leftMargin: Style.spacing.rowPaddingX
                 anchors.rightMargin: Style.spacing.rowPaddingX
-                spacing: Style.spacing.lg
+                implicitHeight: Math.max(receiverLabels.implicitHeight, actionRow.implicitHeight)
 
                 Text {
+                  id: receiverGlyph
                   text: receiverRow.selected ? "󰄬" : "󰐨"
                   color: receiverRow.selected ? Color.accent : root.dim
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.icon
                   anchors.verticalCenter: parent.verticalCenter
+                  anchors.left: parent.left
                 }
 
                 Column {
-                  width: parent.width - actionRow.width - Style.space(60)
+                  id: receiverLabels
+                  anchors.left: receiverGlyph.right
+                  anchors.leftMargin: Style.spacing.lg
+                  anchors.right: actionRow.left
+                  anchors.rightMargin: Style.spacing.lg
+                  anchors.verticalCenter: parent.verticalCenter
                   spacing: Style.spacing.xxs
 
                   Text {
@@ -182,10 +189,15 @@ Panel {
                 Row {
                   id: actionRow
                   spacing: Style.spacing.xs
+                  anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
 
-                  Button {
-                    text: root.mirroring && receiverRow.selected ? root.t("stop") : root.t("mirror")
+                  PanelActionButton {
+                    iconText: root.mirroring && receiverRow.selected ? "󰓛" : "󰐨"
+                    tooltipText: root.mirroring && receiverRow.selected ? root.t("stopTooltip") : root.t("mirrorTooltip")
+                    foreground: root.foreground
+                    hoverColor: root.mirroring && receiverRow.selected ? Color.urgent : Color.accent
+                    fontFamily: root.fontFamily
                     onClicked: {
                       if (!root.hostWidget) return
                       if (root.mirroring && receiverRow.selected) root.hostWidget.stop()
@@ -196,8 +208,12 @@ Panel {
                     }
                   }
 
-                  Button {
-                    text: receiverRow.selected ? root.t("clearSelection") : root.t("select")
+                  PanelActionButton {
+                    iconText: receiverRow.selected ? "󰅖" : "󰄬"
+                    tooltipText: receiverRow.selected ? root.t("clearSelectionTooltip") : root.t("selectTooltip")
+                    foreground: root.foreground
+                    hoverColor: receiverRow.selected ? Color.urgent : Color.accent
+                    fontFamily: root.fontFamily
                     onClicked: {
                       if (!root.hostWidget) return
                       if (receiverRow.selected) root.hostWidget.clearSelection()
@@ -205,9 +221,14 @@ Panel {
                     }
                   }
 
-                  Button {
-                    text: root.t("forget")
+                  PanelActionButton {
+                    iconText: "󰆴"
+                    tooltipText: root.t("forgetTooltip")
+                    foreground: root.foreground
+                    hoverColor: Color.urgent
+                    opacity: receiverRow.modelData.deviceId !== "" ? 1 : 0.35
                     enabled: receiverRow.modelData.deviceId !== ""
+                    fontFamily: root.fontFamily
                     onClicked: if (root.hostWidget) root.hostWidget.forgetReceiver(receiverRow.modelData)
                   }
                 }
