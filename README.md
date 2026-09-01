@@ -7,6 +7,8 @@ It is designed for Apple TV and compatible AirPlay receivers on the local
 network. The plugin discovers receivers, keeps a chosen receiver handy, and
 lets you pair, start, stop, or forget a receiver from the Omarchy bar.
 
+![AirPlay Mirror receiver list](preview.png)
+
 ## Features
 
 - Discovers AirPlay receivers through mDNS/Avahi.
