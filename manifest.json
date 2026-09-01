@@ -32,7 +32,8 @@
       "fps": 30,
       "targetLatencyMs": 180,
       "portRange": "60000-60010",
-      "audio": false
+      "audio": false,
+      "alwaysPromptForCapture": true
     },
     "schema": [
       {
@@ -96,6 +97,13 @@
         "label": "Mirror audio",
         "defaultValue": false,
         "description": "Disabled by default while audio support in DoubleTake is experimental."
+      },
+      {
+        "key": "alwaysPromptForCapture",
+        "type": "boolean",
+        "label": "Choose capture source every time",
+        "defaultValue": true,
+        "description": "Show the portal's screen/window/region picker for every new mirroring session."
       }
     ]
   }

@@ -22,6 +22,8 @@ BarWidget {
   property string streamError: ""
   property bool deliberateStop: false
   property string queuedPairCode: ""
+  property string pendingStartPairCode: ""
+  property bool pairingAttemptInFlight: false
 
   readonly property bool mirroring: mirrorProcess.running
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
@@ -144,6 +146,22 @@ BarWidget {
     }
   }
 
+  function setReceiverPairing(address, paired) {
+    var updated = []
+    for (var i = 0; i < root.receivers.length; i++) {
+      var receiver = root.receivers[i]
+      updated.push({
+        name: receiver.name,
+        address: receiver.address,
+        deviceId: receiver.deviceId,
+        paired: receiver.address === address ? paired : receiver.paired
+      })
+    }
+    root.receivers = updated
+    if (root.selectedAddress === address) root.pairingRequired = !paired
+    root.injectPanel()
+  }
+
   function streamCommand(pairCode) {
     var command = ["env"]
     var vaapiDriver = String(root.setting("vaapiDriver", ""))
@@ -160,15 +178,9 @@ BarWidget {
     return command
   }
 
-  function start(pairCode) {
-    if (root.mirroring) return "already-running"
-    if (root.selectedAddress === "") {
-      root.open()
-      return "no-receiver"
-    }
+  function launchStream(pairCode) {
     root.streamError = ""
     root.deliberateStop = false
-    if ((pairCode || "") === "") root.pairingPromptActive = true
     mirrorProcess.command = root.streamCommand(pairCode || "")
     mirrorProcess.running = true
     root.notify(root.t("mirroringTitle"), root.t("connecting", { name: root.selectedName }))
@@ -176,11 +188,28 @@ BarWidget {
     return "starting"
   }
 
-  function stop() {
+  function start(pairCode) {
+    if (root.mirroring) return "already-running"
+    if (clearRestoreProcess.running) return "preparing-capture"
+    if (root.selectedAddress === "") {
+      root.open()
+      return "no-receiver"
+    }
+    if ((pairCode || "") === "") root.pairingPromptActive = true
+    root.pendingStartPairCode = pairCode || ""
+    if (root.boolSetting("alwaysPromptForCapture", true) && root.selectedDeviceId !== "") {
+      clearRestoreProcess.command = [root.ctlPath, "clear-restore", root.selectedDeviceId]
+      clearRestoreProcess.running = true
+      return "preparing-capture"
+    }
+    return root.launchStream(root.pendingStartPairCode)
+  }
+
+  function stop(silent) {
     if (!root.mirroring) return "stopped"
     root.deliberateStop = true
     mirrorProcess.running = false
-    root.notify(root.t("mirroringTitle"), root.t("stopped", { name: root.selectedName }))
+    if (!silent) root.notify(root.t("mirroringTitle"), root.t("stopped", { name: root.selectedName }))
     root.injectPanel()
     return "stopping"
   }
@@ -188,9 +217,13 @@ BarWidget {
   function pair(code) {
     var clean = String(code).replace(/\s/g, "")
     if (!/^\d{4}$/.test(clean)) return "invalid-code"
+    root.setReceiverPairing(root.selectedAddress, true)
+    root.pairingPromptActive = false
+    root.pairingAttemptInFlight = true
+    pairingCompleteTimer.restart()
     if (root.mirroring) {
       root.queuedPairCode = clean
-      root.stop()
+      root.stop(true)
       return "restarting-for-pairing"
     }
     return root.start(clean)
@@ -229,12 +262,36 @@ BarWidget {
     }
   }
 
+  Timer {
+    id: pairingCompleteTimer
+    interval: 8000
+    repeat: false
+    onTriggered: {
+      root.pairingAttemptInFlight = false
+      root.discover()
+    }
+  }
+
   Process {
     id: saveProcess
     stderr: StdioCollector { waitForEnd: true }
   }
 
   Process { id: clearProcess }
+
+  Process {
+    id: clearRestoreProcess
+    property string errText: ""
+    stderr: StdioCollector { waitForEnd: true; onStreamFinished: clearRestoreProcess.errText = text }
+    onExited: function(code) {
+      if (code === 0) root.launchStream(root.pendingStartPairCode)
+      else {
+        root.streamError = String(clearRestoreProcess.errText).trim() || root.t("capturePreparationFailed")
+        root.injectPanel()
+      }
+      clearRestoreProcess.errText = ""
+    }
+  }
 
   Process {
     id: pairingCheckProcess
@@ -291,6 +348,12 @@ BarWidget {
         root.queuedPairCode = ""
         Qt.callLater(function() { root.start(codeToUse) })
       } else if (!wasDeliberate && code !== 0) {
+        if (root.pairingAttemptInFlight) {
+          root.pairingAttemptInFlight = false
+          pairingCompleteTimer.stop()
+          root.setReceiverPairing(root.selectedAddress, false)
+          root.pairingPromptActive = true
+        }
         root.streamError = root.t("connectionFailed", { code: code })
         root.notify(root.t("connectionFailedTitle"), root.streamError)
       }

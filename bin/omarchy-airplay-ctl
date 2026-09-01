@@ -8,7 +8,7 @@ target_file="${state_dir}/target.tsv"
 credentials_file="${config_home}/doubletake/credentials.json"
 
 usage() {
-  printf 'Usage: %s discover|load|save NAME ADDRESS [DEVICE_ID]|clear|paired DEVICE_ID|forget DEVICE_ID\n' "$0" >&2
+  printf 'Usage: %s discover|load|save NAME ADDRESS [DEVICE_ID]|clear|paired DEVICE_ID|forget DEVICE_ID|clear-restore DEVICE_ID\n' "$0" >&2
   exit 2
 }
 
@@ -102,6 +102,21 @@ forget() {
   mv "$temporary" "$credentials_file"
 }
 
+clear_restore() {
+  [[ $# -eq 1 ]] || usage
+  [[ -f "$credentials_file" ]] || exit 0
+  command -v jq >/dev/null 2>&1 || {
+    printf 'jq is required to clear a receiver capture selection\n' >&2
+    exit 127
+  }
+
+  local temporary
+  temporary="$(mktemp "${credentials_file}.XXXXXX")"
+  jq --arg device_id "$1" 'if has($device_id) then .[$device_id] |= del(.restore_token) else . end' "$credentials_file" >"$temporary"
+  chmod 600 "$temporary"
+  mv "$temporary" "$credentials_file"
+}
+
 case "${1:-}" in
   discover)
     [[ $# -eq 1 ]] || usage
@@ -128,6 +143,10 @@ case "${1:-}" in
   forget)
     shift
     forget "$@"
+    ;;
+  clear-restore)
+    shift
+    clear_restore "$@"
     ;;
   *)
     usage

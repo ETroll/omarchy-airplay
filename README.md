@@ -9,6 +9,7 @@ Wayland desktop through [DoubleTake](https://github.com/omarroth/doubletake).
 - remembers the selected receiver;
 - starts and stops mirroring from the bar;
 - supports pairing a new receiver with its four-digit PIN;
+- opens the portal capture picker for each mirroring session by default;
 - exposes codec, encoder, FPS, latency, audio, and UDP port settings;
 - provides `omarchy-airplay` IPC commands for keybindings and scripts.
 
@@ -28,6 +29,11 @@ another language there by supplying the same message keys as the English map.
 The receiver must be able to reach the local UDP port range configured for
 the widget (default `60000-60010`). If a firewall is enabled, allow that UDP
 range only from trusted receiver addresses.
+
+The **Choose capture source every time** setting is enabled by default. It
+removes only the portal's saved capture selection before a session, keeping the
+AirPlay pairing intact while allowing a different screen, window, or region to
+be chosen every time.
 
 ## Install from a checkout
 
