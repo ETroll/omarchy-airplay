@@ -18,6 +18,7 @@ Panel {
   property string selectedAddress: ""
   property string selectedDeviceId: ""
   property bool pairingRequired: false
+  property bool pairingPromptActive: false
   property string discoveryError: ""
   property string streamError: ""
   property bool mirroring: false
@@ -130,6 +131,7 @@ Panel {
               id: receiverRow
               required property var modelData
               readonly property bool selected: modelData.address === root.selectedAddress
+              readonly property bool paired: selected && !root.pairingRequired
 
               width: contentColumn.width
               implicitHeight: receiverContent.implicitHeight + Style.spacing.lg * 2
@@ -149,8 +151,8 @@ Panel {
 
                 Text {
                   id: receiverGlyph
-                  text: receiverRow.selected ? "󰄬" : "󰐨"
-                  color: receiverRow.selected ? Color.accent : root.dim
+                  text: receiverRow.paired ? "󰄬" : "󰐨"
+                  color: receiverRow.paired ? Color.accent : root.dim
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.icon
                   anchors.verticalCenter: parent.verticalCenter
@@ -237,14 +239,14 @@ Panel {
           }
 
           PanelSectionHeader {
-            visible: root.selectedAddress !== "" && root.pairingRequired
+            visible: root.selectedAddress !== "" && root.pairingRequired && root.pairingPromptActive
             text: root.t("pairNewReceiver")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
 
           Text {
-            visible: root.selectedAddress !== "" && root.pairingRequired
+            visible: root.selectedAddress !== "" && root.pairingRequired && root.pairingPromptActive
             width: parent.width
             text: root.t("pinHelp")
             color: root.dim
@@ -254,7 +256,7 @@ Panel {
           }
 
           Row {
-            visible: root.selectedAddress !== "" && root.pairingRequired
+            visible: root.selectedAddress !== "" && root.pairingRequired && root.pairingPromptActive
             width: parent.width
             spacing: Style.spacing.sm
 

@@ -17,6 +17,7 @@ BarWidget {
   property string selectedAddress: ""
   property string selectedDeviceId: ""
   property bool pairingRequired: false
+  property bool pairingPromptActive: false
   property string discoveryError: ""
   property string streamError: ""
   property bool deliberateStop: false
@@ -27,7 +28,7 @@ BarWidget {
 
   readonly property var mirroredProperties: [
     "bar", "settings", "receivers", "selectedName", "selectedAddress",
-    "selectedDeviceId", "pairingRequired", "discoveryError", "streamError", "mirroring"
+    "selectedDeviceId", "pairingRequired", "pairingPromptActive", "discoveryError", "streamError", "mirroring"
   ]
 
   function boolSetting(key, fallback) {
@@ -90,6 +91,7 @@ BarWidget {
     root.selectedName = name
     root.selectedAddress = address
     root.selectedDeviceId = deviceId || ""
+    root.pairingPromptActive = false
     saveProcess.command = [root.ctlPath, "save", name, address, root.selectedDeviceId]
     saveProcess.running = true
     root.checkPairing()
@@ -102,6 +104,7 @@ BarWidget {
     root.selectedAddress = ""
     root.selectedDeviceId = ""
     root.pairingRequired = false
+    root.pairingPromptActive = false
     clearProcess.command = [root.ctlPath, "clear"]
     clearProcess.running = true
     root.injectPanel()
@@ -128,6 +131,7 @@ BarWidget {
     forgetProcess.running = true
     if (receiver.address === root.selectedAddress) {
       root.pairingRequired = true
+      root.pairingPromptActive = false
       root.injectPanel()
     }
   }
@@ -156,6 +160,7 @@ BarWidget {
     }
     root.streamError = ""
     root.deliberateStop = false
+    if ((pairCode || "") === "") root.pairingPromptActive = true
     mirrorProcess.command = root.streamCommand(pairCode || "")
     mirrorProcess.running = true
     root.notify(root.t("mirroringTitle"), root.t("connecting", { name: root.selectedName }))
