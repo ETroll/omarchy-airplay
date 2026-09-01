@@ -410,7 +410,7 @@ BarWidget {
       ? root.t("tooltipMirroring", { name: root.selectedName })
       : root.t("tooltipChoose")
     onPressed: function(mouseButton) {
-      root.open()
+      root.togglePanel()
     }
   }
 }
