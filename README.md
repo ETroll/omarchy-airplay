@@ -18,7 +18,7 @@ lets you pair, start, stop, or forget a receiver from the Omarchy bar.
 - Supports configurable codec, encoder, FPS, latency, audio, and UDP port
   range settings.
 - Includes English text and Norwegian Bokmål/Nynorsk locale support.
-- Exposes `omarchy-airplay` IPC commands for keybindings and scripts.
+- Exposes `io.github.etroll.omarchy-airplay` IPC commands for keybindings and scripts.
 
 ## Requirements
 
@@ -86,12 +86,11 @@ Do not expose this range to untrusted networks.
 After this repository has been published, install the plugin with Omarchy:
 
 ```sh
-omarchy plugin add https://github.com/<owner>/omarchy-airplay.git --enable
-omarchy bar move <plugin-id> --section right
+omarchy plugin add https://github.com/ETroll/omarchy-airplay.git --enable
+omarchy bar move io.github.etroll.omarchy-airplay --section right
 ```
 
-Replace `<owner>` with the GitHub account name and `<plugin-id>` with the
-published manifest ID. The first command installs a user-owned copy below
+The first command installs a user-owned copy below
 `~/.config/omarchy/plugins/`; it does not modify Omarchy's packaged files.
 
 ### From the Omarchy Plugin Marketplace
@@ -107,11 +106,11 @@ For local development, clone the repository and link it into your user plugin
 directory:
 
 ```sh
-git clone https://github.com/<owner>/omarchy-airplay.git
+git clone https://github.com/ETroll/omarchy-airplay.git
 cd omarchy-airplay
-ln -s "$PWD" ~/.config/omarchy/plugins/<plugin-id>
+ln -s "$PWD" ~/.config/omarchy/plugins/io.github.etroll.omarchy-airplay
 omarchy-shell shell rescanPlugins
-omarchy bar move <plugin-id> --section right
+omarchy bar move io.github.etroll.omarchy-airplay --section right
 ```
 
 Saved changes under `~/.config/omarchy/plugins/` normally reload
@@ -151,11 +150,11 @@ systems, explicitly selecting the working encoder can be more reliable than
 Useful IPC calls:
 
 ```sh
-omarchy-shell <plugin-id> status
-omarchy-shell <plugin-id> toggle
-omarchy-shell <plugin-id> discover
-omarchy-shell <plugin-id> select "Living Room" 192.168.1.50 AA:BB:CC:DD:EE:FF
-omarchy-shell <plugin-id> unselect
+omarchy-shell io.github.etroll.omarchy-airplay status
+omarchy-shell io.github.etroll.omarchy-airplay toggle
+omarchy-shell io.github.etroll.omarchy-airplay discover
+omarchy-shell io.github.etroll.omarchy-airplay select "Living Room" 192.168.1.50 AA:BB:CC:DD:EE:FF
+omarchy-shell io.github.etroll.omarchy-airplay unselect
 ```
 
 ## Troubleshooting
@@ -187,8 +186,8 @@ allowed by the firewall for the receiver.
 ### Inspect plugin validation and logs
 
 ```sh
-omarchy plugin validate ~/.config/omarchy/plugins/<plugin-id>
-omarchy plugin list --json | jq '.[] | select(.id == "<plugin-id>")'
+omarchy plugin validate ~/.config/omarchy/plugins/io.github.etroll.omarchy-airplay
+omarchy plugin list --json | jq '.[] | select(.id == "io.github.etroll.omarchy-airplay")'
 qs log -p "$OMARCHY_PATH/shell" --tail 100
 ```
 
@@ -197,7 +196,7 @@ qs log -p "$OMARCHY_PATH/shell" --tail 100
 Stop any active mirror, then remove the plugin by its manifest ID:
 
 ```sh
-omarchy plugin remove <plugin-id>
+omarchy plugin remove io.github.etroll.omarchy-airplay
 ```
 
 This removes only the installed plugin copy. It does not uninstall DoubleTake,

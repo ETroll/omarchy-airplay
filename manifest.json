@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy-airplay",
+  "id": "io.github.etroll.omarchy-airplay",
   "name": "AirPlay Mirror",
   "version": "0.1.0",
   "author": "Karl Løland",

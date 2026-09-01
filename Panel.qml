@@ -7,7 +7,7 @@ import "i18n/I18n.js" as I18n
 
 Panel {
   id: root
-  moduleName: "omarchy-airplay"
+  moduleName: "io.github.etroll.omarchy-airplay"
 
   property var anchorItem: null
   property var hostWidget: null
