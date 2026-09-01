@@ -12,6 +12,12 @@ Wayland desktop through [DoubleTake](https://github.com/omarroth/doubletake).
 - exposes codec, encoder, FPS, latency, audio, and UDP port settings;
 - provides `omarchy-airplay` IPC commands for keybindings and scripts.
 
+## Languages
+
+The plugin uses English by default and selects Norwegian Bokmål text for
+`nb`, `nn`, and `no` system locales. Translations live in `i18n/I18n.js`; add
+another language there by supplying the same message keys as the English map.
+
 ## Requirements
 
 - Omarchy with the plugin-capable `omarchy-shell`

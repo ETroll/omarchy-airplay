@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "i18n/I18n.js" as I18n
 
 Panel {
   id: root
@@ -24,6 +25,9 @@ Panel {
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color dim: Qt.darker(foreground, 1.45)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property string localeName: Qt.locale().name
+
+  function t(key, values) { return I18n.t(root.localeName, key, values) }
 
   function open() {
     root.controller.show()
@@ -63,10 +67,10 @@ Panel {
           spacing: Style.spacing.panelGap
 
           PanelHero {
-            title: "AirPlay Mirror"
+            title: root.t("airplayMirror")
             meta: root.mirroring
-              ? "Mirroring to " + root.selectedName
-              : (root.selectedAddress !== "" ? "Ready for " + root.selectedName : "Choose a receiver")
+              ? root.t("mirroringTo", { name: root.selectedName })
+              : (root.selectedAddress !== "" ? root.t("readyFor", { name: root.selectedName }) : root.t("chooseReceiver"))
             foreground: root.foreground
             fontFamily: root.fontFamily
 
@@ -82,7 +86,7 @@ Panel {
             trailingControl: Component {
               PanelActionButton {
                 iconText: "󰑐"
-                tooltipText: "Discover receivers"
+                tooltipText: root.t("discoverReceivers")
                 foreground: root.foreground
                 hoverColor: Color.accent
                 fontFamily: root.fontFamily
@@ -104,7 +108,7 @@ Panel {
           PanelSeparator { foreground: root.foreground }
 
           PanelSectionHeader {
-            text: "RECEIVERS"
+            text: root.t("receivers")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
@@ -113,7 +117,7 @@ Panel {
             visible: root.discoveryError !== ""
             width: parent.width
             text: root.discoveryError
-            color: root.discoveryError === "No AirPlay receivers found" ? root.dim : Color.urgent
+            color: root.discoveryError === root.t("noReceivers") ? root.dim : Color.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.WordWrap
@@ -181,7 +185,7 @@ Panel {
                   anchors.verticalCenter: parent.verticalCenter
 
                   Button {
-                    text: root.mirroring && receiverRow.selected ? "Stopp" : "Speil"
+                    text: root.mirroring && receiverRow.selected ? root.t("stop") : root.t("mirror")
                     onClicked: {
                       if (!root.hostWidget) return
                       if (root.mirroring && receiverRow.selected) root.hostWidget.stop()
@@ -193,7 +197,7 @@ Panel {
                   }
 
                   Button {
-                    text: receiverRow.selected ? "Fjern valg" : "Velg"
+                    text: receiverRow.selected ? root.t("clearSelection") : root.t("select")
                     onClicked: {
                       if (!root.hostWidget) return
                       if (receiverRow.selected) root.hostWidget.clearSelection()
@@ -202,7 +206,7 @@ Panel {
                   }
 
                   Button {
-                    text: "Glem"
+                    text: root.t("forget")
                     enabled: receiverRow.modelData.deviceId !== ""
                     onClicked: if (root.hostWidget) root.hostWidget.forgetReceiver(receiverRow.modelData)
                   }
@@ -213,7 +217,7 @@ Panel {
 
           PanelSectionHeader {
             visible: root.selectedAddress !== "" && root.pairingRequired
-            text: "PAIR A NEW RECEIVER"
+            text: root.t("pairNewReceiver")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
@@ -221,7 +225,7 @@ Panel {
           Text {
             visible: root.selectedAddress !== "" && root.pairingRequired
             width: parent.width
-            text: "Select the receiver and start once to make its PIN appear. Enter that four-digit PIN here."
+            text: root.t("pinHelp")
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -236,7 +240,7 @@ Panel {
             TextField {
               id: pairingCode
               width: Style.space(120)
-              placeholderText: "PIN"
+              placeholderText: root.t("pin")
               maximumLength: 4
               inputMethodHints: Qt.ImhDigitsOnly
               validator: RegularExpressionValidator { regularExpression: /\d{0,4}/ }
@@ -245,7 +249,7 @@ Panel {
 
             Button {
               id: pairButton
-              text: "Pair & connect"
+              text: root.t("pairAndConnect")
               enabled: root.selectedAddress !== "" && pairingCode.text.length === 4
               onClicked: {
                 if (root.hostWidget) root.hostWidget.pair(pairingCode.text)
@@ -256,7 +260,7 @@ Panel {
 
           Text {
             width: parent.width
-            text: "Click the AirPlay icon in the bar to open this receiver list."
+            text: root.t("openReceiverList")
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

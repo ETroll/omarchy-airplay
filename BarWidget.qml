@@ -3,12 +3,14 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "i18n/I18n.js" as I18n
 
 BarWidget {
   id: root
   moduleName: "omarchy-airplay"
 
   readonly property string ctlPath: String(Qt.resolvedUrl("bin/omarchy-airplay-ctl")).replace(/^file:\/\//, "")
+  readonly property string localeName: Qt.locale().name
 
   property var receivers: []
   property string selectedName: ""
@@ -33,6 +35,8 @@ BarWidget {
     if (typeof value === "boolean") return value
     return String(value).toLowerCase() === "true"
   }
+
+  function t(key, values) { return I18n.t(root.localeName, key, values) }
 
   function notify(title, message) {
     Quickshell.execDetached(["omarchy-notification-send", "-g", "󰐨", title, message])
@@ -115,7 +119,7 @@ BarWidget {
 
   function forgetReceiver(receiver) {
     if (!receiver || receiver.deviceId === "") {
-      root.streamError = "This receiver did not advertise a device ID, so its saved pairing cannot be removed safely."
+      root.streamError = root.t("pairingCannotForget")
       root.injectPanel()
       return
     }
@@ -154,7 +158,7 @@ BarWidget {
     root.deliberateStop = false
     mirrorProcess.command = root.streamCommand(pairCode || "")
     mirrorProcess.running = true
-    root.notify("AirPlay mirroring", "Connecting to " + root.selectedName)
+    root.notify(root.t("mirroringTitle"), root.t("connecting", { name: root.selectedName }))
     root.injectPanel()
     return "starting"
   }
@@ -163,7 +167,7 @@ BarWidget {
     if (!root.mirroring) return "stopped"
     root.deliberateStop = true
     mirrorProcess.running = false
-    root.notify("AirPlay mirroring", "Stopped mirroring to " + root.selectedName)
+    root.notify(root.t("mirroringTitle"), root.t("stopped", { name: root.selectedName }))
     root.injectPanel()
     return "stopping"
   }
@@ -232,8 +236,8 @@ BarWidget {
     property string errText: ""
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: forgetProcess.errText = text }
     onExited: function(code) {
-      if (code !== 0) root.streamError = String(forgetProcess.errText).trim() || "Could not forget receiver pairing"
-      else root.notify("AirPlay pairing forgotten", "The next connection to this receiver will require its PIN.")
+      if (code !== 0) root.streamError = String(forgetProcess.errText).trim() || root.t("pairingForgetFailed")
+      else root.notify(root.t("pairingForgottenTitle"), root.t("pairingForgotten"))
       forgetProcess.errText = ""
       root.injectPanel()
     }
@@ -248,10 +252,10 @@ BarWidget {
     onExited: function(code) {
       if (code === 0) {
         root.receivers = root.parseReceivers(discoverProcess.outText)
-        root.discoveryError = root.receivers.length === 0 ? "No AirPlay receivers found" : ""
+        root.discoveryError = root.receivers.length === 0 ? root.t("noReceivers") : ""
       } else {
         root.receivers = []
-        root.discoveryError = String(discoverProcess.errText).trim() || "AirPlay discovery failed"
+        root.discoveryError = String(discoverProcess.errText).trim() || root.t("discoveryFailed")
       }
       discoverProcess.outText = ""
       discoverProcess.errText = ""
@@ -271,8 +275,8 @@ BarWidget {
         root.queuedPairCode = ""
         Qt.callLater(function() { root.start(codeToUse) })
       } else if (!wasDeliberate && code !== 0) {
-        root.streamError = "DoubleTake exited with code " + code + ". If the TV shows a PIN, enter it below and choose Pair & connect."
-        root.notify("AirPlay connection failed", root.streamError)
+        root.streamError = root.t("connectionFailed", { code: code })
+        root.notify(root.t("connectionFailedTitle"), root.streamError)
       }
       mirrorProcess.errText = ""
       root.injectPanel()
@@ -323,7 +327,9 @@ BarWidget {
     dimmed: !root.mirroring
     slotSize: Style.bar.statusSlot
     fontSize: Style.font.icon
-    tooltipText: root.mirroring ? "AirPlay mirroring to " + root.selectedName : "Choose an AirPlay receiver"
+    tooltipText: root.mirroring
+      ? root.t("tooltipMirroring", { name: root.selectedName })
+      : root.t("tooltipChoose")
     onPressed: function(mouseButton) {
       root.open()
     }
