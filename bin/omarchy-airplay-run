@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+import os,selectors,signal,subprocess,sys,time
+MAX=65536
+def stop(p):
+ try: os.killpg(p.pid,signal.SIGTERM)
+ except ProcessLookupError:return
+ try:p.wait(2)
+ except subprocess.TimeoutExpired:
+  try:os.killpg(p.pid,signal.SIGKILL)
+  except ProcessLookupError:pass
+def main():
+ a=sys.argv[1:]; timeout=12
+ if len(a)>=3 and a[0]=="--timeout" and a[2]=="--":
+  timeout=int(a[1]); cmd=a[3:]
+ else:cmd=[os.path.join(os.path.dirname(os.path.realpath(__file__)),"omarchy-airplay-ctl")]+a
+ if not cmd:raise SystemExit(2)
+ p=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+ def handler(*_):stop(p);raise SystemExit(143)
+ signal.signal(signal.SIGTERM,handler);signal.signal(signal.SIGINT,handler)
+ deadline=time.monotonic()+timeout if timeout else None
+ out=bytearray();err=bytearray();sel=selectors.DefaultSelector();sel.register(p.stdout,selectors.EVENT_READ,"out");sel.register(p.stderr,selectors.EVENT_READ,"err")
+ while p.poll() is None:
+  if deadline and time.monotonic()>deadline:stop(p);sys.stderr.write("Process timed out\n");raise SystemExit(124)
+  for key,_ in sel.select(.2):
+   data=os.read(key.fileobj.fileno(),4096)
+   if data:
+    if key.data=="out":out.extend(data)
+    else:err.extend(data)
+  if len(out)>MAX or len(err)>MAX:stop(p);sys.stderr.write("Process output exceeded limit\n");raise SystemExit(125)
+ while sel.get_map():
+  for key,_ in sel.select(0):
+   data=os.read(key.fileobj.fileno(),4096)
+   if not data:sel.unregister(key.fileobj);continue
+   if key.data=="out":out.extend(data)
+   else:err.extend(data)
+ if len(out)>MAX or len(err)>MAX:raise SystemExit(125)
+ sys.stdout.buffer.write(out);sys.stderr.buffer.write(err);raise SystemExit(p.returncode)
+if __name__=="__main__":main()

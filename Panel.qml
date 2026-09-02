@@ -103,6 +103,7 @@ Panel {
             visible: root.streamError !== ""
             width: parent.width
             text: root.streamError
+            textFormat: Text.PlainText
             color: Color.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -121,6 +122,7 @@ Panel {
             visible: root.discoveryError !== ""
             width: parent.width
             text: root.discoveryError
+            textFormat: Text.PlainText
             color: root.discoveryError === root.t("noReceivers") ? root.dim : Color.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -177,6 +179,7 @@ Panel {
                   Text {
                     width: parent.width
                     text: receiverRow.modelData.name
+                    textFormat: Text.PlainText
                     color: root.foreground
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.body
@@ -187,6 +190,7 @@ Panel {
                   Text {
                     width: parent.width
                     text: receiverRow.modelData.address
+                    textFormat: Text.PlainText
                     color: root.dim
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
@@ -265,6 +269,7 @@ Panel {
             visible: root.selectedAddress !== "" && root.networkDescription !== ""
             width: parent.width
             text: root.t("activeNetwork", { network: root.networkDescription })
+            textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -287,6 +292,7 @@ Panel {
             visible: root.firewallError !== ""
             width: parent.width
             text: root.firewallError
+            textFormat: Text.PlainText
             color: Color.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

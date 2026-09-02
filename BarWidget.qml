@@ -9,7 +9,8 @@ BarWidget {
   id: root
   moduleName: "io.github.etroll.omarchy-airplay"
 
-  readonly property string ctlPath: String(Qt.resolvedUrl("bin/omarchy-airplay-ctl")).replace(/^file:\/\//, "")
+  readonly property string ctlPath: String(Qt.resolvedUrl("bin/omarchy-airplay-run")).replace(/^file:\/\//, "")
+  readonly property string runnerPath: ctlPath
   readonly property string localeName: Qt.locale().name
 
   property var receivers: []
@@ -131,7 +132,7 @@ BarWidget {
   function allowSelectedReceiver() {
     if (root.selectedDeviceId === "" || root.selectedAddress === "") return "no-receiver"
     root.firewallError = ""
-    firewallAllowProcess.command = ["pkexec", "/usr/bin/ufw", "allow", "from", root.selectedAddress,
+    firewallAllowProcess.command = [root.runnerPath, "--timeout", "120", "--", "pkexec", "/usr/bin/ufw", "allow", "from", root.selectedAddress,
       "to", "any", "port", String(root.setting("portRange", "60000-60010")).replace("-", ":"), "proto", "udp"]
     firewallAllowProcess.running = true
     root.injectPanel()
@@ -195,25 +196,32 @@ BarWidget {
   }
 
   function streamCommand(pairCode) {
+    var executable = String(root.setting("doubletakePath", "doubletake"))
+    var portRange = String(root.setting("portRange", "60000-60010"))
+    var codec = String(root.setting("videoCodec", "h264"))
+    var encoder = String(root.setting("hardwareEncoder", "auto"))
+    var fps = Number(root.setting("fps", 30))
+    var latency = Number(root.setting("targetLatencyMs", 180))
+    if (!(executable === "doubletake" || /^\/[A-Za-z0-9._/-]*\/doubletake$/.test(executable))) return null
+    if (!/^\d{1,5}-\d{1,5}$/.test(portRange) || ["h264", "hevc", "auto"].indexOf(codec) < 0 ||
+        ["auto", "vaapi", "nvenc", "openh264", "none"].indexOf(encoder) < 0 || fps < 15 || fps > 60 || latency < 0 || latency > 1000) return null
     var command = ["env"]
     var vaapiDriver = String(root.setting("vaapiDriver", ""))
     if (vaapiDriver !== "") command.push("LIBVA_DRIVER_NAME=" + vaapiDriver)
-    command.push(String(root.setting("doubletakePath", "doubletake")))
+    command.push(executable)
     command.push("-target", root.selectedAddress)
-    command.push("-port-range", String(root.setting("portRange", "60000-60010")))
-    command.push("-video-codec", String(root.setting("videoCodec", "h264")))
-    command.push("-hwaccel", String(root.setting("hardwareEncoder", "auto")))
-    command.push("-fps", String(root.setting("fps", 30)))
-    command.push("-target-latency-ms", String(root.setting("targetLatencyMs", 180)))
+    command.push("-port-range", portRange, "-video-codec", codec, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
     if (!root.boolSetting("audio", false)) command.push("-no-audio")
     if (pairCode !== "") command.push("-pair", "-code", pairCode)
-    return command
+    return [root.runnerPath, "--timeout", "120", "--"].concat(command)
   }
 
   function launchStream(pairCode) {
     root.streamError = ""
     root.deliberateStop = false
-    mirrorProcess.command = root.streamCommand(pairCode || "")
+    var command = root.streamCommand(pairCode || "")
+    if (command === null) { root.streamError = "Invalid DoubleTake settings"; root.injectPanel(); return "invalid-settings" }
+    mirrorProcess.command = command
     mirrorProcess.running = true
     root.notify(root.t("mirroringTitle"), root.t("connecting", { name: root.selectedName }))
     root.injectPanel()
@@ -271,6 +279,13 @@ BarWidget {
     loadProcess.running = true
     root.discover()
     root.refreshNetwork()
+  }
+
+  Component.onDestruction: {
+    loadProcess.running = false; networkProcess.running = false; firewallLoadProcess.running = false
+    firewallAllowProcess.running = false; firewallLookupForForgetProcess.running = false; firewallRemoveProcess.running = false
+    saveProcess.running = false; clearProcess.running = false; clearRestoreProcess.running = false
+    pairingCheckProcess.running = false; forgetProcess.running = false; discoverProcess.running = false; mirrorProcess.running = false
   }
 
   onBarChanged: root.injectPanel()
@@ -358,7 +373,7 @@ BarWidget {
       var fields = String(firewallLookupForForgetProcess.outText).trim().split("\t")
       firewallLookupForForgetProcess.outText = ""
       if (code !== 0 || fields.length < 3) { root.finishForget(); return }
-      firewallRemoveProcess.command = ["pkexec", "/usr/bin/ufw", "--force", "delete", "allow", "from", fields[1],
+      firewallRemoveProcess.command = [root.runnerPath, "--timeout", "120", "--", "pkexec", "/usr/bin/ufw", "--force", "delete", "allow", "from", fields[1],
         "to", "any", "port", String(fields[2]).replace("-", ":"), "proto", "udp"]
       firewallRemoveProcess.running = true
     }

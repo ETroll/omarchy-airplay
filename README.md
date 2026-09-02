@@ -32,6 +32,8 @@ This is an Omarchy/Arch Linux plugin. It needs:
 - [DoubleTake](https://github.com/omarroth/doubletake), the AirPlay sender.
 - Avahi for receiver discovery, including the `avahi-daemon` service.
 - `jq`, used only to inspect and safely remove an individual saved pairing.
+- Python 3 (provided by a standard Omarchy/Arch installation) for bounded,
+  descriptor-safe local state and process supervision.
 - GStreamer runtime plugins required by DoubleTake.
 - Optional firewall assistance: `ufw` and Polkit's `pkexec`.
 
@@ -217,6 +219,12 @@ Plugins run with the user's permissions. Review this repository and its
 dependencies before installing it. Screen contents are sent to the selected
 AirPlay receiver on the local network. Pair only with receivers you trust, and
 keep firewall rules limited to trusted receiver addresses.
+
+Receiver discovery is bounded to 32 IPv4 receivers with sanitized, length-
+limited names. Local state and DoubleTake credentials are read only from
+regular, user-owned, non-group/world-writable files without following links.
+External helper processes have timeouts, output limits, and process-group
+cleanup.
 
 ## Languages
 

@@ -1,218 +1,112 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
-state_dir="${config_home}/omarchy-airplay"
-target_file="${state_dir}/target.tsv"
-firewall_file="${state_dir}/firewall.tsv"
-credentials_file="${config_home}/doubletake/credentials.json"
-
-usage() {
-  printf 'Usage: %s discover|load|save NAME ADDRESS [DEVICE_ID]|clear|paired DEVICE_ID|forget DEVICE_ID|clear-restore DEVICE_ID|network|firewall-load DEVICE_ID|firewall-save DEVICE_ID ADDRESS PORT_RANGE|firewall-clear DEVICE_ID\n' "$0" >&2
-  exit 2
-}
-
-network() {
-  local route iface gateway cidr connection type
-  route="$(ip -4 route show default 2>/dev/null | head -n 1 || true)"
-  iface="$(awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }' <<<"$route")"
-  gateway="$(awk '{ for (i = 1; i <= NF; i++) if ($i == "via") { print $(i + 1); exit } }' <<<"$route")"
-  [[ -n "$iface" ]] || exit 1
-  cidr="$(ip -o -4 addr show dev "$iface" scope global 2>/dev/null | awk '{ print $4; exit }')"
-  type="$(nmcli -g GENERAL.TYPE device show "$iface" 2>/dev/null | head -n 1 || true)"
-  connection="$(nmcli -g GENERAL.CONNECTION device show "$iface" 2>/dev/null | head -n 1 || true)"
-  printf '%s\t%s\t%s\t%s\t%s\n' "$iface" "$type" "$connection" "$cidr" "$gateway"
-}
-
-validate_firewall_record() {
-  [[ "$1" =~ ^[0-9A-Fa-f:]+$ ]] || { printf 'Invalid device ID\n' >&2; exit 2; }
-  [[ "$2" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || { printf 'Firewall rules require an IPv4 receiver address\n' >&2; exit 2; }
-  [[ "$3" =~ ^[0-9]{1,5}-[0-9]{1,5}$ ]] || { printf 'Invalid UDP port range\n' >&2; exit 2; }
-}
-
-firewall_load() {
-  [[ $# -eq 1 ]] || usage
-  [[ -f "$firewall_file" ]] || exit 1
-  awk -F'\t' -v device_id="$1" '$1 == device_id { print; exit }' "$firewall_file"
-}
-
-firewall_save() {
-  [[ $# -eq 3 ]] || usage
-  validate_firewall_record "$1" "$2" "$3"
-  mkdir -p "$state_dir"
-  umask 077
-  local temporary
-  temporary="$(mktemp "${state_dir}/firewall.XXXXXX")"
-  if [[ -f "$firewall_file" ]]; then
-    awk -F'\t' -v device_id="$1" '$1 != device_id { print }' "$firewall_file" >"$temporary"
-  fi
-  printf '%s\t%s\t%s\n' "$1" "$2" "$3" >>"$temporary"
-  mv "$temporary" "$firewall_file"
-}
-
-firewall_clear() {
-  [[ $# -eq 1 ]] || usage
-  [[ -f "$firewall_file" ]] || exit 0
-  local temporary
-  temporary="$(mktemp "${state_dir}/firewall.XXXXXX")"
-  awk -F'\t' -v device_id="$1" '$1 != device_id { print }' "$firewall_file" >"$temporary"
-  mv "$temporary" "$firewall_file"
-}
-
-discover() {
-  command -v avahi-browse >/dev/null 2>&1 || {
-    printf 'avahi-browse is required (package: avahi)\n' >&2
-    exit 127
-  }
-
-  # avahi-browse parsable resolved records are semicolon-separated. Prefer
-  # IPv4 because DoubleTake and receiver firewall rules are easiest to make
-  # predictable with a concrete IPv4 address. De-duplicate by address.
-  avahi-browse --resolve --terminate --parsable _airplay._tcp 2>/dev/null |
-    awk -F';' '
-      function unescape(value, result, code) {
-        result = ""
-        while (match(value, /\\[0-9][0-9][0-9]/)) {
-          result = result substr(value, 1, RSTART - 1)
-          code = substr(value, RSTART + 1, 3) + 0
-          result = result sprintf("%c", code)
-          value = substr(value, RSTART + 4)
-        }
-        return result value
-      }
-      $1 == "=" && $3 == "IPv4" && !seen[$8]++ {
-        name = unescape($4)
-        device_id = ""
-        if (match($10, /deviceid=[0-9A-Fa-f:]+/))
-          device_id = substr($10, RSTART + 9, RLENGTH - 9)
-        print name "\t" $8 "\t" device_id
-      }
-    ' |
-    while IFS=$'\t' read -r name address device_id; do
-      paired=0
-      if [[ -n "$device_id" && -f "$credentials_file" ]] &&
-        jq -e --arg device_id "$device_id" 'has($device_id)' "$credentials_file" >/dev/null 2>&1; then
-        paired=1
-      fi
-      printf '%s\t%s\t%s\t%s\n' "$name" "$address" "$device_id" "$paired"
-    done
-}
-
-load_target() {
-  if [[ -f "$target_file" ]]; then
-    head -n 1 "$target_file"
-  fi
-}
-
-save_target() {
-  [[ $# -eq 2 || $# -eq 3 ]] || usage
-  local name="$1"
-  local address="$2"
-  local device_id="${3:-}"
-
-  [[ -n "$name" && -n "$address" ]] || usage
-  [[ "$name" != *$'\t'* && "$name" != *$'\n'* ]] || {
-    printf 'Receiver name contains unsupported whitespace\n' >&2
-    exit 2
-  }
-  [[ "$address" =~ ^[A-Za-z0-9._:-]+$ ]] || {
-    printf 'Invalid receiver address\n' >&2
-    exit 2
-  }
-
-  mkdir -p "$state_dir"
-  umask 077
-  local temporary
-  temporary="$(mktemp "${state_dir}/target.XXXXXX")"
-  printf '%s\t%s\t%s\n' "$name" "$address" "$device_id" >"$temporary"
-  mv "$temporary" "$target_file"
-}
-
-paired() {
-  [[ $# -eq 1 ]] || usage
-  [[ -f "$credentials_file" ]] || exit 1
-  jq -e --arg device_id "$1" 'has($device_id)' "$credentials_file" >/dev/null
-}
-
-forget() {
-  [[ $# -eq 1 ]] || usage
-  [[ -f "$credentials_file" ]] || exit 0
-  command -v jq >/dev/null 2>&1 || {
-    printf 'jq is required to forget a receiver pairing\n' >&2
-    exit 127
-  }
-
-  local temporary
-  temporary="$(mktemp "${credentials_file}.XXXXXX")"
-  jq --arg device_id "$1" 'del(.[$device_id])' "$credentials_file" >"$temporary"
-  chmod 600 "$temporary"
-  mv "$temporary" "$credentials_file"
-}
-
-clear_restore() {
-  [[ $# -eq 1 ]] || usage
-  [[ -f "$credentials_file" ]] || exit 0
-  command -v jq >/dev/null 2>&1 || {
-    printf 'jq is required to clear a receiver capture selection\n' >&2
-    exit 127
-  }
-
-  local temporary
-  temporary="$(mktemp "${credentials_file}.XXXXXX")"
-  jq --arg device_id "$1" 'if has($device_id) then .[$device_id] |= del(.restore_token) else . end' "$credentials_file" >"$temporary"
-  chmod 600 "$temporary"
-  mv "$temporary" "$credentials_file"
-}
-
-case "${1:-}" in
-  discover)
-    [[ $# -eq 1 ]] || usage
-    discover
-    ;;
-  load)
-    [[ $# -eq 1 ]] || usage
-    load_target
-    ;;
-  save)
-    shift
-    save_target "$@"
-    ;;
-  clear)
-    [[ $# -eq 1 ]] || usage
-    if [[ -f "$target_file" ]]; then
-      rm -- "$target_file"
-    fi
-    ;;
-  paired)
-    shift
-    paired "$@"
-    ;;
-  forget)
-    shift
-    forget "$@"
-    ;;
-  clear-restore)
-    shift
-    clear_restore "$@"
-    ;;
-  network)
-    [[ $# -eq 1 ]] || usage
-    network
-    ;;
-  firewall-load)
-    shift
-    firewall_load "$@"
-    ;;
-  firewall-save)
-    shift
-    firewall_save "$@"
-    ;;
-  firewall-clear)
-    shift
-    firewall_clear "$@"
-    ;;
-  *)
-    usage
-    ;;
-esac
+#!/usr/bin/env python3
+import ipaddress,json,os,re,stat,subprocess,sys
+MAX=65536; NAMES=96; IDS=re.compile(r"^[0-9A-Fa-f:]{2,64}$")
+def die(s,c=2): print(s,file=sys.stderr); raise SystemExit(c)
+def dfd(name,create=False):
+ base=os.environ.get("XDG_CONFIG_HOME",os.path.expanduser("~/.config"))
+ b=os.open(base,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+ try:
+  if create:
+   try: os.mkdir(name,0o700,dir_fd=b)
+   except FileExistsError: pass
+  d=os.open(name,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW,dir_fd=b); x=os.fstat(d)
+  if x.st_uid!=os.getuid() or not stat.S_ISDIR(x.st_mode) or x.st_mode&0o022: os.close(d); die("Unsafe state directory")
+  return d
+ finally: os.close(b)
+def read(d,n,limit=MAX):
+ try: f=os.open(n,os.O_RDONLY|os.O_NOFOLLOW,dir_fd=d)
+ except FileNotFoundError:return None
+ try:
+  x=os.fstat(f)
+  if not stat.S_ISREG(x.st_mode) or x.st_uid!=os.getuid() or x.st_mode&0o022 or x.st_size>limit:die("Unsafe or oversized state file")
+  z=os.read(f,limit+1)
+  if len(z)>limit:die("Oversized state file")
+  return z
+ finally:os.close(f)
+def write(d,n,z):
+ t="."+n+"."+str(os.getpid()); f=os.open(t,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=d)
+ try:os.write(f,z);os.fsync(f)
+ finally:os.close(f)
+ os.replace(t,n,src_dir_fd=d,dst_dir_fd=d);os.fsync(d)
+def clean(s,n):return "".join(c if c>=" " and c not in "\t\n\r" else " " for c in s)[:n].strip()
+def creds():
+ try:d=dfd("doubletake")
+ except FileNotFoundError:return {}
+ try:
+  z=read(d,"credentials.json",1048576)
+  if z is None:return {}
+  v=json.loads(z.decode())
+  if not isinstance(v,dict):die("Invalid DoubleTake credentials")
+  return v
+ except (UnicodeDecodeError,json.JSONDecodeError):die("Invalid DoubleTake credentials")
+ finally:os.close(d)
+def discovery():
+ try:p=subprocess.run(["avahi-browse","--resolve","--terminate","--parsable","_airplay._tcp"],capture_output=True,timeout=8)
+ except FileNotFoundError:die("avahi-browse is required",127)
+ except subprocess.TimeoutExpired:die("AirPlay discovery timed out",124)
+ if len(p.stdout)>MAX:die("AirPlay discovery output exceeded limit",125)
+ if p.returncode:die("AirPlay discovery failed",p.returncode)
+ seen=set(); c=creds()
+ for line in p.stdout.decode("utf-8","replace").splitlines():
+  f=line.split(";")
+  if len(f)<10 or f[0]!="=" or f[2]!="IPv4":continue
+  try:a=str(ipaddress.IPv4Address(f[7]))
+  except ValueError:continue
+  if a in seen:continue
+  name=clean(re.sub(r"\\(\d{3})",lambda m:chr(int(m.group(1))),f[3]),NAMES) or a
+  m=re.search(r"(?:^|,)deviceid=([0-9A-Fa-f:]+)",f[9]); i=m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
+  print(f"{name}\t{a}\t{i}\t{int(i in c)}");seen.add(a)
+  if len(seen)==32:return
+def firewall(q,a):
+ if not a or not IDS.fullmatch(a[0]):die("Invalid device ID")
+ d=dfd("omarchy-airplay",q=="firewall-save")
+ try:
+  old=(read(d,"firewall.tsv",4096) or b"").decode("utf-8","strict").splitlines()
+  if q=="firewall-load":
+   for line in old:
+    if line.split("\t",1)[0]==a[0]:print(line);return
+   raise SystemExit(1)
+  rows=[x for x in old if x.split("\t",1)[0]!=a[0]]
+  if q=="firewall-save":
+   if len(a)!=3:die("Invalid firewall rule")
+   addr=str(ipaddress.IPv4Address(a[1])); m=re.fullmatch(r"(\d{1,5})-(\d{1,5})",a[2])
+   if not m or not (0<int(m.group(1))<=int(m.group(2))<=65535):die("Invalid UDP port range")
+   rows.append("\t".join((a[0],addr,a[2])))
+  write(d,"firewall.tsv",("\n".join(rows)+("\n" if rows else "")).encode())
+ finally:os.close(d)
+def network():
+ try:r=subprocess.run(["ip","-4","route","show","default"],capture_output=True,text=True,timeout=3).stdout.split()
+ except (subprocess.TimeoutExpired,FileNotFoundError):raise SystemExit(1)
+ if "dev" not in r:raise SystemExit(1)
+ dev=r[r.index("dev")+1]; ip=subprocess.run(["ip","-o","-4","addr","show","dev",dev,"scope","global"],capture_output=True,text=True,timeout=3).stdout.split()
+ print("\t".join((clean(dev,32),"","",next((x for x in ip if "/" in x),""),"")))
+def main():
+ if len(sys.argv)<2:die("Missing command")
+ q,a=sys.argv[1],sys.argv[2:]
+ if q=="discover":return discovery()
+ if q=="network":return network()
+ if q in ("firewall-load","firewall-save","firewall-clear"):return firewall(q,a)
+ if q in ("load","save","clear"):
+  d=dfd("omarchy-airplay",q=="save")
+  try:
+   if q=="load":
+    z=read(d,"target.tsv",4096)
+    if z:sys.stdout.buffer.write(z)
+   elif q=="clear":
+    try:os.unlink("target.tsv",dir_fd=d)
+    except FileNotFoundError:pass
+   else:
+    if len(a)not in(2,3):die("Invalid target")
+    name=clean(a[0],NAMES);addr=str(ipaddress.ip_address(a[1]));i=a[2] if len(a)==3 and IDS.fullmatch(a[2]) else ""
+    write(d,"target.tsv",f"{name}\t{addr}\t{i}\n".encode())
+  finally:os.close(d)
+ elif q in ("paired","forget","clear-restore"):
+  if len(a)!=1 or not IDS.fullmatch(a[0]):die("Invalid device ID")
+  if q=="paired":raise SystemExit(0 if a[0] in creds() else 1)
+  d=dfd("doubletake")
+  try:
+   v=creds();v.pop(a[0],None) if q=="forget" else (v.get(a[0],{}).pop("restore_token",None) if isinstance(v.get(a[0]),dict) else None)
+   write(d,"credentials.json",json.dumps(v,separators=(",",":")).encode())
+  finally:os.close(d)
+ else:die("Unknown command")
+if __name__=="__main__":main()
