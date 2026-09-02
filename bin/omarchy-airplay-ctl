@@ -32,10 +32,11 @@ def clean(s,n):return "".join(c if c>=" " and c not in "\t\n\r" else " " for c i
 def decode_avahi_name(s):
  b=bytearray(); i=0
  while i<len(s):
-  if s[i:i+1]=="\\" and i+3<len(s) and re.fullmatch(r"[0-7]{3}",s[i+1:i+4]):
-   b.append(int(s[i+1:i+4],8)); i+=4
-  else:
-   b.extend(s[i].encode("utf-8")); i+=1
+  if s[i:i+1]=="\\" and i+3<len(s) and re.fullmatch(r"[0-9]{3}",s[i+1:i+4]):
+   value=int(s[i+1:i+4])
+   if value<=255:
+    b.append(value); i+=4; continue
+  b.extend(s[i].encode("utf-8")); i+=1
  return b.decode("utf-8","replace")
 def creds():
  try:d=dfd("doubletake")
