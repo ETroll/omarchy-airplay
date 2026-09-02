@@ -17,6 +17,7 @@ BarWidget {
   property string selectedName: ""
   property string selectedAddress: ""
   property string selectedDeviceId: ""
+  property bool receiverAvailable: false
   property bool pairingRequired: false
   property bool pairingPromptActive: false
   property string discoveryError: ""
@@ -35,7 +36,7 @@ BarWidget {
 
   readonly property var mirroredProperties: [
     "bar", "settings", "receivers", "selectedName", "selectedAddress",
-    "selectedDeviceId", "pairingRequired", "pairingPromptActive", "discoveryError", "streamError", "mirroring",
+    "selectedDeviceId", "receiverAvailable", "pairingRequired", "pairingPromptActive", "discoveryError", "streamError", "mirroring",
     "networkDescription", "firewallError", "firewallManaged"
   ]
 
@@ -105,6 +106,7 @@ BarWidget {
     root.selectedName = name
     root.selectedAddress = address
     root.selectedDeviceId = deviceId || ""
+    root.receiverAvailable = true
     root.pairingPromptActive = false
     for (var i = 0; i < root.receivers.length; i++) {
       if (root.receivers[i].address === address) root.pairingRequired = !root.receivers[i].paired
@@ -144,6 +146,7 @@ BarWidget {
     root.selectedName = ""
     root.selectedAddress = ""
     root.selectedDeviceId = ""
+    root.receiverAvailable = false
     root.pairingRequired = false
     root.pairingPromptActive = false
     clearProcess.command = [root.ctlPath, "clear"]
@@ -302,6 +305,7 @@ BarWidget {
           root.selectedName = fields[0]
           root.selectedAddress = fields[1]
           root.selectedDeviceId = fields[2] || ""
+          root.receiverAvailable = false
           root.checkPairing()
         }
       }
@@ -462,9 +466,13 @@ BarWidget {
     onExited: function(code) {
       if (code === 0) {
         root.receivers = root.parseReceivers(discoverProcess.outText)
+        root.receiverAvailable = root.selectedAddress !== "" && root.receivers.some(function(receiver) {
+          return receiver.address === root.selectedAddress
+        })
         root.discoveryError = root.receivers.length === 0 ? root.t("noReceivers") : ""
       } else {
         root.receivers = []
+        root.receiverAvailable = false
         root.discoveryError = String(discoverProcess.errText).trim() || root.t("discoveryFailed")
       }
       discoverProcess.outText = ""

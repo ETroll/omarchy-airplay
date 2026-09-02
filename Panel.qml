@@ -17,6 +17,7 @@ Panel {
   property string selectedName: ""
   property string selectedAddress: ""
   property string selectedDeviceId: ""
+  property bool receiverAvailable: false
   property bool pairingRequired: false
   property bool pairingPromptActive: false
   property string discoveryError: ""
@@ -74,7 +75,8 @@ Panel {
             title: root.t("airplayMirror")
             meta: root.mirroring
               ? root.t("mirroringTo", { name: root.selectedName })
-              : (root.selectedAddress !== "" ? root.t("readyFor", { name: root.selectedName }) : root.t("chooseReceiver"))
+              : (root.selectedAddress === "" ? root.t("chooseReceiver")
+                : (root.receiverAvailable ? root.t("readyFor", { name: root.selectedName }) : root.t("searchingLocalNetwork")))
             foreground: root.foreground
             fontFamily: root.fontFamily
 
@@ -250,23 +252,23 @@ Panel {
           }
 
           PanelSectionHeader {
-            visible: root.selectedAddress !== "" && root.pairingRequired && root.pairingPromptActive
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingRequired && root.pairingPromptActive
             text: root.t("pairNewReceiver")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
 
-          PanelSeparator { visible: root.selectedAddress !== ""; foreground: root.foreground }
+          PanelSeparator { visible: root.selectedAddress !== "" && root.receiverAvailable; foreground: root.foreground }
 
           PanelSectionHeader {
-            visible: root.selectedAddress !== ""
+            visible: root.selectedAddress !== "" && root.receiverAvailable
             text: root.t("networkAndFirewall")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
 
           Text {
-            visible: root.selectedAddress !== "" && root.networkDescription !== ""
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.networkDescription !== ""
             width: parent.width
             text: root.t("activeNetwork", { network: root.networkDescription })
             textFormat: Text.PlainText
@@ -277,7 +279,7 @@ Panel {
           }
 
           Text {
-            visible: root.selectedAddress !== ""
+            visible: root.selectedAddress !== "" && root.receiverAvailable
             width: parent.width
             text: root.firewallManaged
               ? root.t("firewallManaged", { address: root.selectedAddress })
@@ -300,13 +302,13 @@ Panel {
           }
 
           Button {
-            visible: root.selectedAddress !== "" && !root.firewallManaged
+            visible: root.selectedAddress !== "" && root.receiverAvailable && !root.firewallManaged
             text: root.t("allowFirewall")
             onClicked: if (root.hostWidget) root.hostWidget.allowSelectedReceiver()
           }
 
           Text {
-            visible: root.selectedAddress !== "" && root.pairingRequired && root.pairingPromptActive
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingRequired && root.pairingPromptActive
             width: parent.width
             text: root.t("pinHelp")
             color: root.dim
@@ -316,7 +318,7 @@ Panel {
           }
 
           Row {
-            visible: root.selectedAddress !== "" && root.pairingRequired && root.pairingPromptActive
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingRequired && root.pairingPromptActive
             width: parent.width
             spacing: Style.spacing.sm
 
