@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import ipaddress,json,os,re,stat,subprocess,sys
+import ipaddress,json,os,re,selectors,stat,subprocess,sys,time
 MAX=65536; NAMES=96; IDS=re.compile(r"^[0-9A-Fa-f:]{2,64}$")
 def die(s,c=2): print(s,file=sys.stderr); raise SystemExit(c)
 def dfd(name,create=False):
@@ -41,13 +41,22 @@ def creds():
  except (UnicodeDecodeError,json.JSONDecodeError):die("Invalid DoubleTake credentials")
  finally:os.close(d)
 def discovery():
- try:p=subprocess.run(["avahi-browse","--resolve","--terminate","--parsable","_airplay._tcp"],capture_output=True,timeout=8)
+ try:p=subprocess.Popen(["avahi-browse","--resolve","--terminate","--parsable","_airplay._tcp"],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
  except FileNotFoundError:die("avahi-browse is required",127)
- except subprocess.TimeoutExpired:die("AirPlay discovery timed out",124)
- if len(p.stdout)>MAX:die("AirPlay discovery output exceeded limit",125)
+ out=bytearray();s=selectors.DefaultSelector();s.register(p.stdout,selectors.EVENT_READ);deadline=time.monotonic()+8
+ while p.poll() is None:
+  if time.monotonic()>deadline:os.killpg(p.pid,9);die("AirPlay discovery timed out",124)
+  for k,_ in s.select(.2):
+   z=os.read(k.fileobj.fileno(),4096);out.extend(z)
+   if len(out)>MAX:os.killpg(p.pid,9);die("AirPlay discovery output exceeded limit",125)
+ while True:
+  z=os.read(p.stdout.fileno(),4096)
+  if not z:break
+  out.extend(z)
+  if len(out)>MAX:die("AirPlay discovery output exceeded limit",125)
  if p.returncode:die("AirPlay discovery failed",p.returncode)
  seen=set(); c=creds()
- for line in p.stdout.decode("utf-8","replace").splitlines():
+ for line in out.decode("utf-8","replace").splitlines():
   f=line.split(";")
   if len(f)<10 or f[0]!="=" or f[2]!="IPv4":continue
   try:a=str(ipaddress.IPv4Address(f[7]))
