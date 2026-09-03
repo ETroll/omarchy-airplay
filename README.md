@@ -47,14 +47,14 @@ sudo pacman -S --needed \
   pipewire xdg-desktop-portal xdg-desktop-portal-hyprland
 ```
 
-Install the stable DoubleTake package from the AUR with your AUR helper:
+Install the current DoubleTake package from the AUR with your AUR helper:
 
 ```sh
-yay -S --needed doubletake
+    yay -S --needed doubletake-git
 ```
 
-`doubletake-git` is an alternative for users who specifically need the newest
-upstream changes. Do not install it together with `doubletake`.
+The plugin uses CLI options added after the 0.4.0 release. Do not install
+`doubletake-git` together with `doubletake`.
 
 Enable receiver discovery:
 
