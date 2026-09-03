@@ -259,8 +259,8 @@ BarWidget {
   }
 
   function pair(code) {
-    var clean = String(code).replace(/\s/g, "")
-    if (!/^\d{4}$/.test(clean)) return "invalid-code"
+    var clean = String(code)
+    if (clean.length < 1 || clean.length > 128 || /[\u0000-\u001f\u007f]/.test(clean)) return "invalid-code"
     root.setReceiverPairing(root.selectedAddress, true)
     root.pairingPromptActive = false
     root.pairingAttemptInFlight = true
@@ -494,6 +494,12 @@ BarWidget {
         root.queuedPairCode = ""
         Qt.callLater(function() { root.start(codeToUse) })
       } else if (!wasDeliberate && code !== 0) {
+        var errorText = String(mirrorProcess.errText)
+        var credentialRequired = /password cannot be empty|configured password|pin|pairing code/i.test(errorText)
+        if (credentialRequired) {
+          root.pairingRequired = true
+          root.pairingPromptActive = true
+        }
         if (root.pairingAttemptInFlight) {
           root.pairingAttemptInFlight = false
           pairingCompleteTimer.stop()

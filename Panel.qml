@@ -113,14 +113,14 @@ Panel {
           }
 
           PanelSectionHeader {
-            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingRequired && root.pairingPromptActive
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingPromptActive
             text: root.t("pairNewReceiver")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
 
           Text {
-            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingRequired && root.pairingPromptActive
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingPromptActive
             width: parent.width
             text: root.t("pinHelp")
             color: root.dim
@@ -130,24 +130,23 @@ Panel {
           }
 
           Row {
-            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingRequired && root.pairingPromptActive
+            visible: root.selectedAddress !== "" && root.receiverAvailable && root.pairingPromptActive
             width: parent.width
             spacing: Style.spacing.sm
 
             TextField {
               id: pairingCode
-              width: Style.space(120)
+              width: Style.space(180)
               placeholderText: root.t("pin")
-              maximumLength: 4
-              inputMethodHints: Qt.ImhDigitsOnly
-              validator: RegularExpressionValidator { regularExpression: /\d{0,4}/ }
+              maximumLength: 128
+              echoMode: TextInput.Password
               onAccepted: pairButton.clicked()
             }
 
             Button {
               id: pairButton
               text: root.t("pairAndConnect")
-              enabled: root.selectedAddress !== "" && pairingCode.text.length === 4
+              enabled: root.selectedAddress !== "" && pairingCode.text.length > 0
               onClicked: {
                 if (root.hostWidget) root.hostWidget.pair(pairingCode.text)
                 pairingCode.text = ""
