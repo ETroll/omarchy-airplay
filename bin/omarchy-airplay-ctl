@@ -37,6 +37,9 @@ def avahi_unescape(s):
    if value<=255:out.append(value);i+=4;continue
   out.extend(s[i].encode("utf-8"));i+=1
  return out.decode("utf-8","replace")
+def device_id(s):
+ m=re.search(r"(?:^|[^A-Za-z0-9_])deviceid=([0-9A-Fa-f:]+)(?=$|[^0-9A-Fa-f:])",s)
+ return m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
 def creds():
  try:d=dfd("doubletake")
  except FileNotFoundError:return {}
@@ -71,7 +74,7 @@ def discovery():
   except ValueError:continue
   if a in seen:continue
   name=clean(avahi_unescape(f[3]),NAMES) or a
-  m=re.search(r"(?:^|,)deviceid=([0-9A-Fa-f:]+)",f[9]); i=m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
+  i=device_id(f[9])
   print(f"{name}\t{a}\t{i}\t{int(i in c)}");seen.add(a)
   if len(seen)==32:return
 def firewall(q,a):
