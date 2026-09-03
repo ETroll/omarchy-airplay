@@ -17,7 +17,7 @@ lets you pair, start, stop, or forget a receiver from the Omarchy bar.
 - Lets you select, unselect, and forget individual receivers.
 - Shows the Wayland screen/window/region picker for every new session by
   default.
-- Supports configurable codec, encoder, FPS, latency, audio, and UDP port
+- Supports configurable encoder, FPS, latency, audio, and UDP port
   range settings.
 - Includes English text and Norwegian Bokmål/Nynorsk locale support.
 - Exposes `io.github.etroll.omarchy-airplay` IPC commands for keybindings and scripts.
@@ -149,12 +149,11 @@ AirPlay pairing intact.
 ## Configure
 
 Open the widget's settings in Omarchy to configure the DoubleTake executable,
-video codec, hardware encoder, FPS, target latency, audio, and UDP port range.
+hardware encoder, FPS, target latency, audio, and UDP port range.
 
-`h264` is the compatibility default. On current Intel graphics, `vaapi` with
-the VAAPI driver set to `iHD` is often a good low-latency option. On hybrid-GPU
-systems, explicitly selecting the working encoder can be more reliable than
-`auto`.
+DoubleTake 0.4 streams H.264. On current Intel graphics, `vaapi` with the VAAPI
+driver set to `iHD` is often a good low-latency option. On hybrid-GPU systems,
+explicitly selecting the working encoder can be more reliable than `auto`.
 
 Useful IPC calls:
 
@@ -188,7 +187,7 @@ required before video can begin.
 
 ### Mirroring connects but does not update
 
-Try `h264` at 30 FPS, then explicitly select the encoder that matches your GPU
+Try 30 FPS, then explicitly select the encoder that matches your GPU
 (`vaapi`, `nvenc`, or software). If UFW is enabled, use **Allow selected
 receiver** for the selected receiver and retry.
 

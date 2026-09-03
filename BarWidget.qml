@@ -201,21 +201,20 @@ BarWidget {
   function streamCommand(pairCode) {
     var executable = String(root.setting("doubletakePath", "doubletake"))
     var portRange = String(root.setting("portRange", "60000-60010"))
-    var codec = String(root.setting("videoCodec", "h264"))
     var encoder = String(root.setting("hardwareEncoder", "auto"))
     var fps = Number(root.setting("fps", 30))
     var latency = Number(root.setting("targetLatencyMs", 180))
     if (!(executable === "doubletake" || /^\/[A-Za-z0-9._/-]*\/doubletake$/.test(executable))) return null
-    if (!/^\d{1,5}-\d{1,5}$/.test(portRange) || ["h264", "hevc", "auto"].indexOf(codec) < 0 ||
-        ["auto", "vaapi", "nvenc", "openh264", "none"].indexOf(encoder) < 0 || fps < 15 || fps > 60 || latency < 0 || latency > 1000) return null
+    if (!/^\d{1,5}-\d{1,5}$/.test(portRange) ||
+        ["auto", "vaapi", "nvenc", "none"].indexOf(encoder) < 0 || fps < 15 || fps > 60 || latency < 0 || latency > 1000) return null
     var command = ["env"]
     var vaapiDriver = String(root.setting("vaapiDriver", ""))
     if (vaapiDriver !== "") command.push("LIBVA_DRIVER_NAME=" + vaapiDriver)
     command.push(executable)
     command.push("-target", root.selectedAddress)
-    command.push("-port-range", portRange, "-video-codec", codec, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
+    command.push("-port-range", portRange, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
     if (!root.boolSetting("audio", false)) command.push("-no-audio")
-    if (pairCode !== "") command.push("-pair", "-code", pairCode)
+    if (pairCode !== "") command.push("-pair", "-pin", pairCode)
     return [root.runnerPath, "--timeout", "120", "--"].concat(command)
   }
 
