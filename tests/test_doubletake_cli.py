@@ -26,6 +26,7 @@ class DoubleTakeCliTest(unittest.TestCase):
     def test_authentication_error_reopens_credentials(self):
         self.assertIn("var credentialRequired =", QML)
         self.assertIn("root.pairingPromptActive = true", QML)
+        self.assertIn('"\\n\\nDoubleTake: " + diagnostic', QML)
 
     def test_configured_password_does_not_force_pin_pairing(self):
         self.assertIn('pairCode !== "" && !root.configuredPasswordRequired', QML)

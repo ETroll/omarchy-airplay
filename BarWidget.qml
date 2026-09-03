@@ -510,7 +510,10 @@ BarWidget {
           root.setReceiverPairing(root.selectedAddress, false)
           root.pairingPromptActive = true
         }
+        var diagnostic = errorText.trim()
+        if (diagnostic.length > 1200) diagnostic = diagnostic.slice(-1200)
         root.streamError = root.t("connectionFailed", { code: code })
+        if (diagnostic !== "") root.streamError += "\n\nDoubleTake: " + diagnostic
         root.notify(root.t("connectionFailedTitle"), root.streamError)
       }
       mirrorProcess.errText = ""
