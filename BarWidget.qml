@@ -20,6 +20,7 @@ BarWidget {
   property bool receiverAvailable: false
   property bool pairingRequired: false
   property bool pairingPromptActive: false
+  property bool configuredPasswordRequired: false
   property string discoveryError: ""
   property string streamError: ""
   property string networkDescription: ""
@@ -36,7 +37,7 @@ BarWidget {
 
   readonly property var mirroredProperties: [
     "bar", "settings", "receivers", "selectedName", "selectedAddress",
-    "selectedDeviceId", "receiverAvailable", "pairingRequired", "pairingPromptActive", "discoveryError", "streamError", "mirroring",
+    "selectedDeviceId", "receiverAvailable", "pairingRequired", "pairingPromptActive", "configuredPasswordRequired", "discoveryError", "streamError", "mirroring",
     "networkDescription", "firewallError", "firewallManaged"
   ]
 
@@ -108,6 +109,7 @@ BarWidget {
     root.selectedDeviceId = deviceId || ""
     root.receiverAvailable = true
     root.pairingPromptActive = false
+    root.configuredPasswordRequired = false
     for (var i = 0; i < root.receivers.length; i++) {
       if (root.receivers[i].address === address) root.pairingRequired = !root.receivers[i].paired
     }
@@ -216,7 +218,7 @@ BarWidget {
     command.push("-target", root.selectedAddress)
     command.push("-port-range", portRange, "-video-codec", codec, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
     if (!root.boolSetting("audio", false)) command.push("-no-audio")
-    if (pairCode !== "") command.push("-pair")
+    if (pairCode !== "" && !root.configuredPasswordRequired) command.push("-pair")
     return [root.runnerPath, "--timeout", "120", "--"].concat(command)
   }
 
@@ -495,10 +497,12 @@ BarWidget {
         Qt.callLater(function() { root.start(codeToUse) })
       } else if (!wasDeliberate && code !== 0) {
         var errorText = String(mirrorProcess.errText)
-        var credentialRequired = /password cannot be empty|configured password|pin|pairing code/i.test(errorText)
+        var passwordRequired = /password cannot be empty|configured password/i.test(errorText)
+        var credentialRequired = passwordRequired || /pin|pairing code/i.test(errorText)
         if (credentialRequired) {
           root.pairingRequired = true
           root.pairingPromptActive = true
+          root.configuredPasswordRequired = passwordRequired
         }
         if (root.pairingAttemptInFlight) {
           root.pairingAttemptInFlight = false

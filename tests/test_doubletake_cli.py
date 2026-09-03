@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 QML = (ROOT / "BarWidget.qml").read_text()
 PANEL = (ROOT / "Panel.qml").read_text()
+RUNNER = (ROOT / "bin" / "omarchy-airplay-run").read_text()
 
 
 class DoubleTakeCliTest(unittest.TestCase):
@@ -25,6 +26,13 @@ class DoubleTakeCliTest(unittest.TestCase):
     def test_authentication_error_reopens_credentials(self):
         self.assertIn("var credentialRequired =", QML)
         self.assertIn("root.pairingPromptActive = true", QML)
+
+    def test_configured_password_does_not_force_pin_pairing(self):
+        self.assertIn('pairCode !== "" && !root.configuredPasswordRequired', QML)
+        self.assertIn("root.configuredPasswordRequired = passwordRequired", QML)
+
+    def test_runner_disables_interactive_password_prompt(self):
+        self.assertIn("stdin=subprocess.DEVNULL", RUNNER)
 
 
 if __name__ == "__main__":

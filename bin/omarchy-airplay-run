@@ -14,7 +14,7 @@ def main():
   timeout=int(a[1]); cmd=a[3:]
  else:cmd=[os.path.join(os.path.dirname(os.path.realpath(__file__)),"omarchy-airplay-ctl")]+a
  if not cmd:raise SystemExit(2)
- p=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+ p=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
  def handler(*_):stop(p);raise SystemExit(143)
  signal.signal(signal.SIGTERM,handler);signal.signal(signal.SIGINT,handler)
  deadline=time.monotonic()+timeout if timeout else None
