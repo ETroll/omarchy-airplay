@@ -120,7 +120,8 @@ def main():
  elif q in ("paired","forget","clear-restore"):
   if len(a)!=1 or not IDS.fullmatch(a[0]):die("Invalid device ID")
   if q=="paired":raise SystemExit(0 if a[0] in creds() else 1)
-  d=dfd("doubletake")
+  try:d=dfd("doubletake")
+  except FileNotFoundError:return
   try:
    v=creds();v.pop(a[0],None) if q=="forget" else (v.get(a[0],{}).pop("restore_token",None) if isinstance(v.get(a[0]),dict) else None)
    write(d,"credentials.json",json.dumps(v,separators=(",",":")).encode())
