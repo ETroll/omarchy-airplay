@@ -29,6 +29,14 @@ def write(d,n,z):
  finally:os.close(f)
  os.replace(t,n,src_dir_fd=d,dst_dir_fd=d);os.fsync(d)
 def clean(s,n):return "".join(c if c>=" " and c not in "\t\n\r" else " " for c in s)[:n].strip()
+def avahi_unescape(s):
+ out=bytearray();i=0
+ while i<len(s):
+  if s[i]=="\\" and i+3<len(s) and s[i+1:i+4].isdigit():
+   value=int(s[i+1:i+4])
+   if value<=255:out.append(value);i+=4;continue
+  out.extend(s[i].encode("utf-8"));i+=1
+ return out.decode("utf-8","replace")
 def creds():
  try:d=dfd("doubletake")
  except FileNotFoundError:return {}
@@ -62,7 +70,7 @@ def discovery():
   try:a=str(ipaddress.IPv4Address(f[7]))
   except ValueError:continue
   if a in seen:continue
-  name=clean(re.sub(r"\\(\d{3})",lambda m:chr(int(m.group(1))),f[3]),NAMES) or a
+  name=clean(avahi_unescape(f[3]),NAMES) or a
   m=re.search(r"(?:^|,)deviceid=([0-9A-Fa-f:]+)",f[9]); i=m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
   print(f"{name}\t{a}\t{i}\t{int(i in c)}");seen.add(a)
   if len(seen)==32:return
