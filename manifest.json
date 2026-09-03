@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.etroll.omarchy-airplay",
   "name": "AirPlay Mirror",
-  "version": "0.2.1",
+  "version": "0.2.0",
   "author": "Karl Løland",
   "license": "MIT",
   "description": "Discover AirPlay receivers and mirror the Omarchy desktop with DoubleTake.",
@@ -26,6 +26,7 @@
     "defaultSection": "right",
     "defaults": {
       "doubletakePath": "doubletake",
+      "videoCodec": "h264",
       "hardwareEncoder": "auto",
       "vaapiDriver": "",
       "fps": 30,
@@ -43,10 +44,18 @@
         "description": "Command name or absolute path to DoubleTake."
       },
       {
+        "key": "videoCodec",
+        "type": "enum",
+        "label": "Video codec",
+        "options": ["h264", "hevc", "auto"],
+        "defaultValue": "h264",
+        "description": "H.264 is the most compatible choice for live desktop mirroring."
+      },
+      {
         "key": "hardwareEncoder",
         "type": "enum",
         "label": "Hardware encoder",
-        "options": ["auto", "vaapi", "nvenc", "none"],
+        "options": ["auto", "vaapi", "nvenc", "openh264", "none"],
         "defaultValue": "auto",
         "description": "Use auto first. Intel graphics commonly work best with VAAPI."
       },

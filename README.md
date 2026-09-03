@@ -17,7 +17,7 @@ lets you pair, start, stop, or forget a receiver from the Omarchy bar.
 - Lets you select, unselect, and forget individual receivers.
 - Shows the Wayland screen/window/region picker for every new session by
   default.
-- Supports configurable encoder, FPS, latency, audio, and UDP port
+- Supports configurable codec, encoder, FPS, latency, audio, and UDP port
   range settings.
 - Includes English text and Norwegian Bokmål/Nynorsk locale support.
 - Exposes `io.github.etroll.omarchy-airplay` IPC commands for keybindings and scripts.
@@ -47,14 +47,14 @@ sudo pacman -S --needed \
   pipewire xdg-desktop-portal xdg-desktop-portal-hyprland
 ```
 
-Install the stable DoubleTake package from the AUR with your AUR helper:
+Install the current DoubleTake package from the AUR with your AUR helper:
 
 ```sh
-yay -S --needed doubletake
+    yay -S --needed doubletake-git
 ```
 
-`doubletake-git` is an alternative for users who specifically need the newest
-upstream changes. Do not install it together with `doubletake`.
+The plugin uses CLI options added after the 0.4.0 release. Do not install
+`doubletake-git` together with `doubletake`.
 
 Enable receiver discovery:
 
@@ -149,11 +149,12 @@ AirPlay pairing intact.
 ## Configure
 
 Open the widget's settings in Omarchy to configure the DoubleTake executable,
-hardware encoder, FPS, target latency, audio, and UDP port range.
+video codec, hardware encoder, FPS, target latency, audio, and UDP port range.
 
-DoubleTake 0.4 streams H.264. On current Intel graphics, `vaapi` with the VAAPI
-driver set to `iHD` is often a good low-latency option. On hybrid-GPU systems,
-explicitly selecting the working encoder can be more reliable than `auto`.
+`h264` is the compatibility default. On current Intel graphics, `vaapi` with
+the VAAPI driver set to `iHD` is often a good low-latency option. On hybrid-GPU
+systems, explicitly selecting the working encoder can be more reliable than
+`auto`.
 
 Useful IPC calls:
 
@@ -187,7 +188,7 @@ required before video can begin.
 
 ### Mirroring connects but does not update
 
-Try 30 FPS, then explicitly select the encoder that matches your GPU
+Try `h264` at 30 FPS, then explicitly select the encoder that matches your GPU
 (`vaapi`, `nvenc`, or software). If UFW is enabled, use **Allow selected
 receiver** for the selected receiver and retry.
 
