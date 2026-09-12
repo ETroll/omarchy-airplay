@@ -213,10 +213,10 @@ BarWidget {
     if (vaapiDriver !== "") command.push("LIBVA_DRIVER_NAME=" + vaapiDriver)
     command.push(executable)
     command.push("-target", root.selectedAddress)
-    command.push("-port-range", portRange, "-video-codec", codec, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
+    command.push("-port-range", portRange, "-hwaccel", encoder === "openh264" ? "none" : encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
     if (!root.boolSetting("audio", false)) command.push("-no-audio")
-    if (pairCode !== "") command.push("-pair", "-code", pairCode)
-    return [root.runnerPath, "--timeout", "120", "--"].concat(command)
+    if (pairCode !== "") command.push("-pair", "-pin", pairCode)
+    return command
   }
 
   function launchStream(pairCode) {
