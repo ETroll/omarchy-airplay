@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os,selectors,signal,subprocess,sys,time
+import os,re,selectors,signal,subprocess,sys,time
 MAX=65536
 def stop(p):
  try: os.killpg(p.pid,signal.SIGTERM)
@@ -8,16 +8,50 @@ def stop(p):
  except subprocess.TimeoutExpired:
   try:os.killpg(p.pid,signal.SIGKILL)
   except ProcessLookupError:pass
+def defined_flags(exe):
+ try:
+  r=subprocess.run([exe,"-h"],capture_output=True,text=True,timeout=3)
+  text=(r.stdout or "")+"\n"+(r.stderr or "")
+ except Exception:
+  return set()
+ return {m.group(1) for m in re.finditer(r"(?m)^\s+-([A-Za-z0-9-]+)", text)}
+VALUE_FLAGS={"bitrate","code","cred-backend","creds","fps","hwaccel","pin","port","port-range","socket","target","target-latency-ms","video-codec","x11-window-id","x11-window-name"}
+def adapt_doubletake(cmd):
+ idx=next((i for i,x in enumerate(cmd) if os.path.basename(x)=="doubletake"),None)
+ if idx is None: return cmd
+ flags=defined_flags(cmd[idx])
+ if not flags: return cmd
+ args=cmd[idx+1:]; out=[]; i=0
+ while i<len(args):
+  a=args[i]
+  if not a.startswith("-") or a=="-":
+   out.append(a); i+=1; continue
+  name=a[1:]; nxt=2 if name in VALUE_FLAGS and i+1<len(args) else 1
+  val=args[i+1] if nxt==2 else None
+  if name=="video-codec" and "video-codec" not in flags:
+   i+=nxt; continue
+  if name=="code" and "code" not in flags:
+   if val is not None and "pin" in flags: out.extend(["-pin",val])
+   i+=nxt; continue
+  if name=="pin" and "pin" not in flags:
+   if val is not None and "code" in flags: out.extend(["-code",val])
+   i+=nxt; continue
+  out.append(a)
+  if nxt==2: out.append(val)
+  i+=nxt
+ return cmd[:idx+1]+out
 def main():
  a=sys.argv[1:]; timeout=12
  if len(a)>=3 and a[0]=="--timeout" and a[2]=="--":
   timeout=int(a[1]); cmd=a[3:]
  else:cmd=[os.path.join(os.path.dirname(os.path.realpath(__file__)),"omarchy-airplay-ctl")]+a
  if not cmd:raise SystemExit(2)
+ cmd=adapt_doubletake(cmd)
  p=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
  def handler(*_):stop(p);raise SystemExit(143)
  signal.signal(signal.SIGTERM,handler);signal.signal(signal.SIGINT,handler)
  deadline=time.monotonic()+timeout if timeout else None
+ limit=None if timeout==0 else MAX
  out=bytearray();err=bytearray();sel=selectors.DefaultSelector();sel.register(p.stdout,selectors.EVENT_READ,"out");sel.register(p.stderr,selectors.EVENT_READ,"err")
  while p.poll() is None:
   if deadline and time.monotonic()>deadline:stop(p);sys.stderr.write("Process timed out\n");raise SystemExit(124)
@@ -26,13 +60,13 @@ def main():
    if data:
     if key.data=="out":out.extend(data)
     else:err.extend(data)
-  if len(out)>MAX or len(err)>MAX:stop(p);sys.stderr.write("Process output exceeded limit\n");raise SystemExit(125)
+  if limit and (len(out)>limit or len(err)>limit):stop(p);sys.stderr.write("Process output exceeded limit\n");raise SystemExit(125)
  while sel.get_map():
   for key,_ in sel.select(0):
    data=os.read(key.fileobj.fileno(),4096)
    if not data:sel.unregister(key.fileobj);continue
    if key.data=="out":out.extend(data)
    else:err.extend(data)
- if len(out)>MAX or len(err)>MAX:raise SystemExit(125)
+ if limit and (len(out)>limit or len(err)>limit):raise SystemExit(125)
  sys.stdout.buffer.write(out);sys.stderr.buffer.write(err);raise SystemExit(p.returncode)
 if __name__=="__main__":main()

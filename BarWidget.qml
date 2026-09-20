@@ -216,7 +216,8 @@ BarWidget {
     command.push("-port-range", portRange, "-video-codec", codec, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
     if (!root.boolSetting("audio", false)) command.push("-no-audio")
     if (pairCode !== "") command.push("-pair", "-code", pairCode)
-    return [root.runnerPath, "--timeout", "120", "--"].concat(command)
+    // 0 disables the runner deadline so a successful mirror is not killed after 2 minutes.
+    return [root.runnerPath, "--timeout", "0", "--"].concat(command)
   }
 
   function launchStream(pairCode) {
@@ -499,7 +500,11 @@ BarWidget {
           root.setReceiverPairing(root.selectedAddress, false)
           root.pairingPromptActive = true
         }
+        var detail = String(mirrorProcess.errText).trim().split("\n").filter(function(line) {
+          return line !== "" && line.indexOf("Usage of doubletake") !== 0 && line.indexOf("  -") !== 0
+        })[0] || ""
         root.streamError = root.t("connectionFailed", { code: code })
+        if (detail) root.streamError += " " + detail
         root.notify(root.t("connectionFailedTitle"), root.streamError)
       }
       mirrorProcess.errText = ""
