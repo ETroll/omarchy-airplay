@@ -86,6 +86,17 @@ BarWidget {
     root.injectPanel()
   }
 
+  function pinSelected(list) {
+    if (root.selectedAddress === "") return list
+    var pinned = []
+    var rest = []
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].address === root.selectedAddress) pinned.push(list[i])
+      else rest.push(list[i])
+    }
+    return pinned.concat(rest)
+  }
+
   function parseReceivers(text) {
     var found = []
     var lines = String(text).trim().split("\n")
@@ -99,7 +110,7 @@ BarWidget {
         paired: fields[3] === "1"
       })
     }
-    return found
+    return root.pinSelected(found)
   }
 
   function selectReceiver(name, address, deviceId) {
@@ -111,6 +122,7 @@ BarWidget {
     for (var i = 0; i < root.receivers.length; i++) {
       if (root.receivers[i].address === address) root.pairingRequired = !root.receivers[i].paired
     }
+    root.receivers = root.pinSelected(root.receivers)
     saveProcess.command = [root.ctlPath, "save", name, address, root.selectedDeviceId]
     saveProcess.running = true
     root.checkPairing()
