@@ -43,18 +43,34 @@ Install the required repository packages:
 sudo pacman -S --needed \
   avahi jq \
   gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad \
-  gst-plugins-ugly gst-libav \
+  gst-plugins-ugly gst-libav gst-plugin-va \
   pipewire xdg-desktop-portal xdg-desktop-portal-hyprland
 ```
 
-Install the stable DoubleTake package from the AUR with your AUR helper:
+`gst-plugin-va` provides `vapostproc` and `vah264enc`. Arch ships these in
+their own package rather than in `gst-plugins-bad`. Without it DoubleTake
+falls back to software conversion and encoding.
+
+Install DoubleTake from the AUR with your AUR helper:
 
 ```sh
-yay -S --needed doubletake
+yay -S --needed doubletake-git
 ```
 
-`doubletake-git` is an alternative for users who specifically need the newest
-upstream changes. Do not install it together with `doubletake`.
+`doubletake-git` is required; the stable `doubletake` package does not work
+with this plugin. The plugin invokes DoubleTake with `-video-codec` and
+`-pair -code`, which exist only in DoubleTake's upstream `main`. Stable
+`doubletake` 0.4.0 has no `-video-codec` and still calls the pairing flag
+`-pin`, so Go's flag parser rejects the command line and the process exits
+before it connects:
+
+```
+flag provided but not defined: -video-codec
+```
+
+The widget surfaces this only as `DoubleTake exited with code 1`, which
+reads as a receiver or network problem. Do not install both packages
+together.
 
 Enable receiver discovery:
 
