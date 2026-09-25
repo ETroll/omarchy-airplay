@@ -63,7 +63,7 @@ def discovery():
   except ValueError:continue
   if a in seen:continue
   name=clean(re.sub(r"\\(\d{3})",lambda m:chr(int(m.group(1))),f[3]),NAMES) or a
-  m=re.search(r"(?:^|,)deviceid=([0-9A-Fa-f:]+)",f[9]); i=m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
+  m=re.search(r"(?:^|[,\s\"])deviceid=([0-9A-Fa-f:]+)",f[9]); i=m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
   print(f"{name}\t{a}\t{i}\t{int(i in c)}");seen.add(a)
   if len(seen)==32:return
 def firewall(q,a):
