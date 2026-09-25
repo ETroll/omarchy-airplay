@@ -293,6 +293,7 @@ BarWidget {
 
   onBarChanged: root.injectPanel()
   onSettingsChanged: root.injectPanel()
+  onMirroringChanged: root.injectPanel()
 
   Process {
     id: loadProcess
