@@ -30,6 +30,17 @@ BarWidget {
   property string queuedPairCode: ""
   property string pendingStartPairCode: ""
   property bool pairingAttemptInFlight: false
+  property bool awaitingPin: false
+
+  function checkPinPrompt(data) {
+    if (String(data).indexOf("Enter the PIN") < 0) return
+    root.awaitingPin = true
+    root.pairingRequired = true
+    root.pairingPromptActive = true
+    root.notify(root.t("mirroringTitle"), root.t("pinHelp"))
+    if (!root.opened) root.open()
+    root.injectPanel()
+  }
 
   readonly property bool mirroring: mirrorProcess.running
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
@@ -213,10 +224,11 @@ BarWidget {
     if (vaapiDriver !== "") command.push("LIBVA_DRIVER_NAME=" + vaapiDriver)
     command.push(executable)
     command.push("-target", root.selectedAddress)
-    command.push("-port-range", portRange, "-video-codec", codec, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
+    command.push("-port-range", portRange, "-hwaccel", encoder, "-fps", String(fps), "-target-latency-ms", String(latency))
     if (!root.boolSetting("audio", false)) command.push("-no-audio")
-    if (pairCode !== "") command.push("-pair", "-code", pairCode)
-    return [root.runnerPath, "--timeout", "120", "--"].concat(command)
+    if (pairCode !== "") command.push("-pair", "-pin", pairCode)
+    else if (root.pairingRequired) command.push("-pair")
+    return command
   }
 
   function launchStream(pairCode) {
@@ -260,6 +272,12 @@ BarWidget {
   function pair(code) {
     var clean = String(code).replace(/\s/g, "")
     if (!/^\d{4}$/.test(clean)) return "invalid-code"
+    if (root.mirroring && root.awaitingPin) {
+      mirrorProcess.write(clean + "\n")
+      root.awaitingPin = false
+      root.pairingPromptActive = false
+      return "pin-sent"
+    }
     root.setReceiverPairing(root.selectedAddress, true)
     root.pairingPromptActive = false
     root.pairingAttemptInFlight = true
@@ -484,10 +502,14 @@ BarWidget {
   Process {
     id: mirrorProcess
     property string errText: ""
-    stderr: StdioCollector { waitForEnd: true; onStreamFinished: mirrorProcess.errText = text }
+    stdinEnabled: true
+    stdout: SplitParser { splitMarker: ":"; onRead: function(data) { root.checkPinPrompt(data) } }
+    stderr: SplitParser { splitMarker: ":"; onRead: function(data) { root.checkPinPrompt(data) } }
     onExited: function(code) {
+      Qt.callLater(root.checkPairing)
       var wasDeliberate = root.deliberateStop
       root.deliberateStop = false
+      root.awaitingPin = false
       if (root.queuedPairCode !== "") {
         var codeToUse = root.queuedPairCode
         root.queuedPairCode = ""

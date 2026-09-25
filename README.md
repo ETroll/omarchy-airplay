@@ -43,7 +43,7 @@ Install the required repository packages:
 sudo pacman -S --needed \
   avahi jq \
   gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad \
-  gst-plugins-ugly gst-libav \
+  gst-plugins-ugly gst-libav gst-plugin-va \
   pipewire xdg-desktop-portal xdg-desktop-portal-hyprland
 ```
 
