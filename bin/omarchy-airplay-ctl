@@ -28,6 +28,14 @@ def write(d,n,z):
  try:os.write(f,z);os.fsync(f)
  finally:os.close(f)
  os.replace(t,n,src_dir_fd=d,dst_dir_fd=d);os.fsync(d)
+def unescape(s):
+ # avahi-browse --parsable escapes each byte as \DDD (decimal) and a few characters as \c,
+ # so a multi-byte UTF-8 character arrives as several escapes that must be decoded together.
+ def f(m):
+  x=m.group(1)
+  if len(x)==1:return x
+  return bytes([int(x)]) if int(x)<256 else m.group(0)
+ return re.sub(rb"\\(\d{3}|\D)",f,s.encode()).decode("utf-8","replace")
 def clean(s,n):return "".join(c if c>=" " and c not in "\t\n\r" else " " for c in s)[:n].strip()
 def creds():
  try:d=dfd("doubletake")
@@ -62,7 +70,7 @@ def discovery():
   try:a=str(ipaddress.IPv4Address(f[7]))
   except ValueError:continue
   if a in seen:continue
-  name=clean(re.sub(r"\\(\d{3})",lambda m:chr(int(m.group(1))),f[3]),NAMES) or a
+  name=clean(unescape(f[3]),NAMES) or a
   m=re.search(r"(?:^|,)deviceid=([0-9A-Fa-f:]+)",f[9]); i=m.group(1) if m and IDS.fullmatch(m.group(1)) else ""
   print(f"{name}\t{a}\t{i}\t{int(i in c)}");seen.add(a)
   if len(seen)==32:return
